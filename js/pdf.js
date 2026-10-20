@@ -2,7 +2,7 @@ import { fmtDate, fmtDT, fmtNum, calcEsito } from "./ui.js";
 import { listAllegati, audit } from "./store.js";
 
 let lib = null;
-const load = async () => (lib = lib || (await import("../vendor/pdf.js")));
+const load = async () => (lib = lib || (await import("../vendor/jspdf.js")));
 const RED = [220, 38, 38];
 
 function header(doc, titolo, sotto, codice) {
