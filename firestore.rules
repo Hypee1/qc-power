@@ -1,0 +1,80 @@
+rules_version = '2';
+
+// =====================================================================
+//  MACE POWER — Quality Control · Regole di sicurezza Firestore
+//  Admin  = admin@macepower.qc   → legge e scrive tutto
+//  Ospite = ospite@macepower.qc  → legge tutto, può SOLO inviare solleciti/note
+//  Chiunque altro (anche se registrato) → nessun accesso
+//  Se cambi le email in js/config.js, cambiale anche qui sotto.
+// =====================================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signed()  { return request.auth != null; }
+    function email()   { return request.auth.token.email; }
+    function isAdmin() { return signed() && email() == 'admin@macepower.qc'; }
+    function isGuest() { return signed() && email() == 'ospite@macepower.qc'; }
+    function member()  { return isAdmin() || isGuest(); }
+    function d()       { return request.resource.data; }
+    function str(v, max) { return v is string && v.size() <= max; }
+
+    // ---------- Dati di qualità: ospite in sola lettura ----------
+    match /controlli/{id} { allow read: if member(); allow write: if isAdmin(); }
+    match /nc/{id}        { allow read: if member(); allow write: if isAdmin(); }
+    match /ddt/{id}       { allow read: if member(); allow write: if isAdmin(); }
+    match /commesse/{id}  { allow read: if member(); allow write: if isAdmin(); }
+
+    // ---------- Allegati (file in base64, max ~1 MB per documento) ----------
+    match /allegati/{id} {
+      allow read: if member();
+      allow create, update: if isAdmin() && str(d().data, 1000000) && str(d().parent_id, 100);
+      allow delete: if isAdmin();
+    }
+
+    // ---------- Solleciti e note dell'ospite ----------
+    match /segnalazioni/{id} {
+      allow read: if member();
+      allow create: if isGuest()
+        && d().keys().hasOnly(['tipo', 'entity', 'entity_id', 'entity_label', 'testo', 'autore', 'email', 'stato', 'ts', 'dispositivo'])
+        && d().tipo in ['sollecito', 'nota']
+        && d().entity in ['controlli', 'nc', 'ddt', 'commesse']
+        && str(d().entity_id, 100) && str(d().entity_label, 200) && str(d().testo, 2000)
+        && str(d().autore, 80) && str(d().dispositivo, 200)
+        && d().email == email() && d().stato == 'nuova' && d().ts == request.time;
+      allow update, delete: if isAdmin();
+    }
+
+    // ---------- Console accessi (solo admin legge) ----------
+    match /accessi/{id} {
+      allow read, delete: if isAdmin();
+      allow update: if false;
+      allow create: if d().ts == request.time
+        && d().keys().hasOnly(['evento', 'email', 'role', 'ts', 'ip', 'citta', 'regione', 'paese', 'provider', 'dispositivo', 'os', 'browser', 'modello', 'schermo', 'lingua', 'fuso', 'ua', 'sid', 'motivo'])
+        && str(d().email, 120) && str(d().ua, 400) && str(d().ip, 60)
+        && (
+          (member() && d().email == email() && d().evento in ['login', 'logout', 'timeout', 'ripresa_sessione'])
+          // tentativo fallito: l'utente non è ancora autenticato
+          || (!signed() && d().evento == 'login_fallito')
+        );
+    }
+
+    match /sessioni/{id} {
+      allow read, delete: if isAdmin();
+      allow create: if member() && d().email == email()
+        && d().keys().hasOnly(['email', 'role', 'inizio', 'ultimo', 'fine', 'pagine', 'pagina', 'ip', 'citta', 'provider', 'dispositivo', 'os', 'browser', 'modello', 'schermo']);
+      allow update: if member() && resource.data.email == email()
+        && d().diff(resource.data).affectedKeys().hasOnly(['ultimo', 'pagina', 'pagine', 'fine']);
+    }
+
+    // ---------- Audit log: scrivibile da entrambi, leggibile solo da admin, non modificabile ----------
+    match /audit/{id} {
+      allow read: if isAdmin();
+      allow create: if member() && d().user_email == email() && d().ts == request.time
+        && str(d().label, 200) && str(d().details, 500);
+      allow update, delete: if false;
+    }
+
+    // Tutto il resto è chiuso
+    match /{document=**} { allow read, write: if false; }
+  }
+}

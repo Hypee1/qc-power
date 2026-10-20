@@ -1,0 +1,5 @@
+seed-data.json
+backup_*.json
+*.csv
+node_modules/
+.DS_Store
