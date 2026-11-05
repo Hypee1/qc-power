@@ -1,8 +1,8 @@
 import { html, useState, useEffect, Icon, Badge, PageHeader, Card, Spinner, Empty, toast, confirmDialog, fmtDT, ago } from "../ui.js";
 import { watchSegnalazioni, setSegnalazione, delSegnalazione, audit } from "../store.js";
 
-const link = (s) => s.entity === "controlli" ? "#/controllo/" + s.entity_id : s.entity === "nc" ? "#/nc/" + s.entity_id : s.entity === "ddt" ? "#/ddt?" + s.entity_id : s.entity === "commesse" ? "#/commesse?" + s.entity_id : s.entity === "rientri" ? "#/rientro/" + s.entity_id : "#/";
-const ENT = { controlli: "Controllo", nc: "NC", ddt: "Documento", commesse: "Commessa", rientri: "Rientro" };
+const link = (s) => s.entity === "controlli" ? "#/controllo/" + s.entity_id : s.entity === "nc" ? "#/nc/" + s.entity_id : s.entity === "ddt" ? "#/ddt?" + s.entity_id : s.entity === "commesse" ? "#/commesse?" + s.entity_id : s.entity === "rientri" ? "#/rientro/" + s.entity_id : s.entity === "resistenze" ? "#/resistenza/" + s.entity_id : "#/";
+const ENT = { controlli: "Controllo", nc: "NC", ddt: "Documento", commesse: "Commessa", rientri: "Rientro", resistenze: "Resistenze" };
 
 export function Segnalazioni() {
   const [rows, setRows] = useState(null);
