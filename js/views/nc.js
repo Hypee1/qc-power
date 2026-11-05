@@ -5,13 +5,14 @@ import { SignaturePad, Allegati, flushPending } from "../widgets.js";
 import { GuestPanel } from "../guest.js";
 import { pdfNC } from "../pdf.js";
 import { suggestNumero, numeroDuplicato, statoScadenza, scadenzaNC, fornitori } from "./common.js";
+import { AziendaPicker, AziendaTag, aziendaOf, aziendaLabel, LOGO_SERVICE } from "../azienda.js";
 
 const STEPS = [
   { n: 1, l: "Info generali", i: "file" }, { n: 2, l: "Materiale", i: "box" }, { n: 3, l: "Rilevazione", i: "clipboard" },
   { n: 4, l: "Trattamento", i: "wand" }, { n: 5, l: "Efficacia", i: "checkCircle" }, { n: 6, l: "Stato", i: "history" },
 ];
 const vuota = () => ({
-  numero_report: "", data: isoDay(), documento_riferimento: "", origine_nc: "", controparte: "", classificazione: "",
+  azienda: "", numero_report: "", data: isoDay(), documento_riferimento: "", origine_nc: "", controparte: "", classificazione: "",
   materiale_descrizione: "", quantita: "", quantita_definitiva: false, descrizione_nc: "", responsabile_rilevazione: "",
   firma_rilevazione: null, trattamento_tipo: "", causa: "", trattamento: "", data_completamento: "", firma_trattamento: null,
   efficacia: "", azione_correttiva: "", data_azione: "", data_verifica_efficacia: "", firma_efficacia: null,
@@ -26,7 +27,7 @@ function NDCheck({ value, onSet, disabled }) {
 export function NCForm({ id }) {
   const admin = isAdmin(), ro = !admin;
   const draftKey = "nc-draft-" + (id || "new");
-  const [n, setN] = useState(id ? null : vuota());
+  const [n, setN] = useState(id ? null : { ...vuota(), azienda: /az=service/.test(location.hash) ? "service" : /az=power/.test(location.hash) ? "power" : "" });
   const [step, setStep] = useState(1);
   const [full, setFull] = useState(ro);
   const [busy, setBusy] = useState(false);
@@ -36,10 +37,7 @@ export function NCForm({ id }) {
   const touched = useRef(false);
 
   useEffect(() => {
-    list("nc").then((r) => {
-      setAll(r);
-      if (!id) setN((x) => (x.numero_report ? x : { ...x, numero_report: suggestNumero(r) }));
-    }).catch(() => {});
+    list("nc").then(setAll).catch(() => {});
     if (id) {
       get("nc", id).then((r) => {
         if (!r) { toast.err("NC non trovata"); return go("/registro-nc"); }
@@ -47,9 +45,14 @@ export function NCForm({ id }) {
         if (!admin) audit("view", "nc", id, r.numero_report);
       }).catch((e) => toast.err("Errore di lettura: " + e.code));
     } else if (admin) {
-      try { const d = localStorage.getItem(draftKey); if (d) { setN({ ...vuota(), ...JSON.parse(d) }); toast.info("Bozza ripristinata"); } } catch (e) { }
+      try { const d = localStorage.getItem(draftKey); if (d) { setN((x) => ({ ...vuota(), ...JSON.parse(d), azienda: JSON.parse(d).azienda || x.azienda })); toast.info("Bozza ripristinata"); } } catch (e) { }
     }
   }, [id]);
+  // Numero suggerito: Power e Service hanno registri (e progressivi) separati
+  useEffect(() => {
+    if (id || !n || !n.azienda || n.numero_report) return;
+    setN((x) => ({ ...x, numero_report: suggestNumero(all.filter((y) => aziendaOf(y) === x.azienda)) }));
+  }, [n && n.azienda, all.length]);
   useEffect(() => {
     if (id || ro || !touched.current || !n) return;
     const t = setTimeout(() => { try { localStorage.setItem(draftKey, JSON.stringify(n)); } catch (e) { } }, 1200);
@@ -64,16 +67,27 @@ export function NCForm({ id }) {
   const set = (k, v) => { touched.current = true; setN((x) => ({ ...x, [k]: v })); };
   const setFirma = (k) => (f) => set(k, f);
   const setFirmatario = (k) => (name) => set(k, { ...(n[k] || {}), firmatario: name });
-  const dup = numeroDuplicato(all, n.numero_report, id);
+  const az = id ? aziendaOf(n) : n.azienda;
+  const dup = numeroDuplicato(all.filter((y) => aziendaOf(y) === (az || "power")), n.numero_report, id);
   const sc = statoScadenza(n);
   const fl = n.firma_legacy || {};
   const controparti = fornitori(all, "controparte");
 
+  // Domanda obbligatoria prima di compilare una nuova NC
+  if (!id && !n.azienda) return html`<div>
+    <a class="back" href="#/registro-nc"><${Icon} n="back" s=${14} /> Registro NC</a>
+    <${PageHeader} title="Nuova Non Conformità" subtitle="Scegli prima l'azienda" />
+    <${Card} title="La NC è per MACE POWER o per MACE SERVICE? *">
+      <p class="muted small">Risposta obbligatoria: MACE SERVICE ha un registro NC separato, con la sua numerazione e il suo logo sul PDF.</p>
+      <${AziendaPicker} value="" onChange=${(v) => set("azienda", v)} />
+    </${Card}></div>`;
+
   const salva = async () => {
+    if (!az) { setStep(1); return toast.err("Scegli l'azienda: MACE POWER o MACE SERVICE"); }
     if (!n.numero_report.trim()) { setStep(1); return toast.err("Inserisci il numero report"); }
     if (!n.data) { setStep(1); return toast.err("Inserisci la data"); }
-    if (dup && !(await confirmDialog("Numero già usato", `Esiste già una NC con numero ${n.numero_report}. Salvare comunque?`, "Salva comunque"))) return;
-    const body = { ...n };
+    if (dup && !(await confirmDialog("Numero già usato", `Esiste già una NC ${aziendaLabel(az)} con numero ${n.numero_report}. Salvare comunque?`, "Salva comunque"))) return;
+    const body = { ...n, azienda: az };
     if (body.stato === "chiusa") {
       if (!body.data_chiusura) body.data_chiusura = isoDay();
       const miss = [!body.descrizione_nc && "descrizione", !body.trattamento_tipo && "tipo trattamento", !body.azione_correttiva && "azione correttiva"].filter(Boolean);
@@ -109,7 +123,9 @@ export function NCForm({ id }) {
 
   const S = {
     1: html`<div class="form-grid">
-      <${Field} label="Numero report" hint=${dup ? html`<span class="warn">⚠ Numero già usato da un'altra NC</span>` : "Formato consigliato NN/AA (es. 28/26)"}>${inp("numero_report")}</${Field}>
+      <${Field} label="Azienda *"><div class="az-inline"><${AziendaTag} v=${az} />${!ro && html` <button class="link-btn" onClick=${() => { set("azienda", az === "service" ? "power" : "service"); if (!id) set("numero_report", ""); }}>
+        cambia in ${az === "service" ? "MACE POWER" : "MACE SERVICE"}</button>`}</div></${Field}>
+      <${Field} label="Numero report" hint=${dup ? html`<span class="warn">⚠ Numero già usato da un'altra NC ${aziendaLabel(az)}</span>` : `Registro ${aziendaLabel(az)} · formato NN/AA (es. 28/26)`}>${inp("numero_report")}</${Field}>
       <${Field} label="Data">${date("data")}</${Field}>
       <${Field} label="Documento riferimento">${inp("documento_riferimento", "es. DDT 304/2026, Commessa 25/00139")}</${Field}>
       <${Field} label="Origine NC"><${Select} value=${n.origine_nc} disabled=${ro} options=${[...ORIGINI_NC, ...(n.origine_nc && !ORIGINI_NC.includes(n.origine_nc) ? [n.origine_nc] : [])]} onChange=${(v) => set("origine_nc", v)} /></${Field}>
@@ -159,11 +175,12 @@ export function NCForm({ id }) {
   return html`<div>
     <a class="back" href="#/registro-nc"><${Icon} n="back" s=${14} /> Registro NC</a>
     <${PageHeader} title=${id ? "Non Conformità" : "Nuova Non Conformità"} subtitle=${n.numero_report}>
-      <${Badge} v=${n.stato} />${sc && sc.status !== "in_corso" && html` <${Badge} v=${sc.status} />`}
-      ${id && html`<button class="btn outline" onClick=${() => pdfNC({ ...n, id })}><${Icon} n="download" /> PDF</button>`}
+      <${AziendaTag} v=${az} /> <${Badge} v=${n.stato} />${sc && sc.status !== "in_corso" && html` <${Badge} v=${sc.status} />`}
+      ${id && html`<button class="btn outline" onClick=${() => pdfNC({ ...n, id, azienda: az })}><${Icon} n="download" /> PDF</button>`}
       ${admin && id && html`<button class="btn ghost danger-t" title="Elimina" onClick=${elimina}><${Icon} n="trash" /></button>`}
       ${admin && html`<button class="btn primary" disabled=${busy} onClick=${salva}>${busy ? html`<span class="spin sm"></span>` : html`<${Icon} n="save" />`} Salva</button>`}
     </${PageHeader}>
+    ${az === "service" && html`<div class="az-banner"><img src=${LOGO_SERVICE} alt="Mace Service" /><span>Non conformità registrata per conto di <b>MACE SERVICE</b> · registro NC Service</span></div>`}
     ${ro && html`<div class="ro-note"><${Icon} n="lock" s=${14} /> Modalità sola consultazione (Ospite). Modifiche disabilitate.</div>`}
     ${ro && html`<${GuestPanel} entity="nc" id=${id} label=${`NC ${n.numero_report} · ${n.materiale_descrizione || ""}`} />`}
 

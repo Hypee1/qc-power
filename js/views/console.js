@@ -88,7 +88,7 @@ export function Console() {
 
     ${tab === "ospite" && html`<${Card} title="Cosa ha guardato e fatto l'ospite">
       ${aud.length === 0 ? html`<${Empty} text="Nessuna attività dell'ospite." />` : html`<div class="mini-list">${aud.slice(0, 300).map((r) => { const [l, c] = AZIONI[r.action] || [r.action, "zinc"];
-        const h = r.entity === "controlli" ? "#/controllo/" + r.entity_id : r.entity === "nc" ? "#/nc/" + r.entity_id : null;
+        const h = r.entity === "controlli" ? "#/controllo/" + r.entity_id : r.entity === "nc" ? "#/nc/" + r.entity_id : r.entity === "rientri" && r.entity_id ? "#/rientro/" + r.entity_id : null;
         return html`<div class="mini"><span class=${"badge b-" + c}>${l}</span><div class="grow">${h ? html`<a href=${h}>${r.label || r.entity_id}</a>` : r.label || "—"}${r.details && html`<small class="muted block">“${r.details}”</small>`}</div>
           <span class="mono small muted">${fmtDT(r.ts)}</span></div>`; })}</div>`}
     </${Card}>`}

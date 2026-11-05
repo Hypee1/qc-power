@@ -1,6 +1,6 @@
 import { html, useState, useEffect, toDate, isoDay, fornKey } from "../ui.js";
 import { list, onDataChange } from "../store.js";
-import { APP } from "../config.js";
+import { APP, PROVE_RIENTRO } from "../config.js";
 
 // Carica una o più collezioni e si aggiorna quando cambiano
 export function useCollections(cols) {
@@ -25,14 +25,14 @@ export function parseNum(s) {
   return { n: parseInt(m[1], 10), yy: parseInt(m[2].slice(-2), 10) };
 }
 // Prossimo numero libero nel formato usato davvero (NN/AA)
-export function suggestNumero(ncs) {
+export function suggestNumero(ncs, field = "numero_report") {
   const yy = new Date().getFullYear() % 100;
-  const max = ncs.map((x) => parseNum(x.numero_report)).filter((p) => p && p.yy === yy).reduce((m, p) => Math.max(m, p.n), 0);
+  const max = ncs.map((x) => parseNum(x[field])).filter((p) => p && p.yy === yy).reduce((m, p) => Math.max(m, p.n), 0);
   return `${String(max + 1).padStart(2, "0")}/${yy}`;
 }
-export function numeroDuplicato(ncs, numero, selfId) {
+export function numeroDuplicato(ncs, numero, selfId, field = "numero_report") {
   const k = String(numero || "").replace(/\s/g, "").toLowerCase();
-  return k && ncs.some((x) => x.id !== selfId && String(x.numero_report || "").replace(/\s/g, "").toLowerCase() === k);
+  return k && ncs.some((x) => x.id !== selfId && String(x[field] || "").replace(/\s/g, "").toLowerCase() === k);
 }
 
 // Scadenza NC: data_scadenza esplicita, altrimenti data + SLA
@@ -67,3 +67,10 @@ export function Columns({ data, height = 150 }) {
   return html`<div class="cols" style=${`height:${height}px`}>${data.map((d) => html`<div class="col" key=${d.l} title=${`${d.l}: ${d.v}`}>
     <span class="col-v">${d.v || ""}</span><div class="col-b" style=${`height:${(d.v / max) * 100}%;${d.c ? "background:" + d.c : ""}`}></div><span class="col-l">${d.l}</span></div>`)}</div>`;
 }
+
+// ---------- Rientri trasformatori ----------
+const vals = (o) => Object.values(o || {}).map((x) => x && x.v).filter(Boolean);
+export const koRientro = (r) => vals(r.prove).filter((v) => v === "ko").length;
+export const collaudoFatto = (r) => !!(r.data_verifica || r.verificato_da);
+export const faseRientro = (r) => (collaudoFatto(r) ? "collaudato" : vals(r.prove).length ? "in_collaudo" : "da_collaudare");
+export const proveFatte = (r) => PROVE_RIENTRO.filter(([k]) => r.prove && r.prove[k] && r.prove[k].v).length;

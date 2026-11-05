@@ -4,6 +4,9 @@ import { useCollections, byDateDesc, statoScadenza } from "./common.js";
 import { GuestRowActions } from "../guest.js";
 import { pdfNC } from "../pdf.js";
 import { ORIGINI_NC } from "../config.js";
+import { AziendaTabs, aziendaOf, aziendaLabel, tabMemo, LOGO_SERVICE } from "../azienda.js";
+
+const memo = tabMemo("qc-tab-nc");
 
 export function RegistroNC() {
   const [d] = useCollections(["nc"]);
@@ -13,9 +16,13 @@ export function RegistroNC() {
   const [cls, setCls] = useState("");
   const [anno, setAnno] = useState("");
   const [n, setN] = useState(50);
+  const [az, setAzS] = useState(memo.get());
+  const setAz = (v) => { memo.set(v); setAzS(v); setN(50); };
   const admin = isAdmin();
   if (!d) return html`<${Spinner} />`;
-  const N = d.nc;
+  const ALL = d.nc;
+  const N = ALL.filter((x) => aziendaOf(x) === az);
+  const counts = { power: ALL.filter((x) => aziendaOf(x) === "power").length, service: ALL.filter((x) => aziendaOf(x) === "service").length };
   const anni = [...new Set(N.map((x) => (x.data || "").slice(0, 4)).filter(Boolean))].sort().reverse();
   const nq = norm(q);
   const rows = N.filter((x) => (!orig || (orig === "_" ? !x.origine_nc : x.origine_nc === orig)) && (!stato || x.stato === stato) && (!cls || x.classificazione === cls)
@@ -26,16 +33,18 @@ export function RegistroNC() {
     if (!(await confirmDialog("Eliminare la NC?", `NC ${x.numero_report} · ${x.materiale_descrizione || ""}`))) return;
     try { await remove("nc", x.id, x.numero_report); toast.ok("NC eliminata"); } catch (e) { toast.err("Eliminazione non riuscita"); }
   };
-  const esporta = () => download(`registro_nc_${new Date().toISOString().slice(0, 10)}.csv`, csv([
+  const esporta = () => download(`registro_nc_${az}_${new Date().toISOString().slice(0, 10)}.csv`, csv([
     ["Numero", "Data", "Origine", "Classificazione", "Controparte", "Documento rif.", "Materiale", "Quantità", "Descrizione NC", "Responsabile", "Tipo trattamento", "Causa", "Trattamento", "Azione correttiva", "Efficacia", "Stato", "Data chiusura"],
     ...rows.map((x) => [x.numero_report, x.data, x.origine_nc, x.classificazione, x.controparte, x.documento_riferimento, x.materiale_descrizione, x.quantita, x.descrizione_nc,
       x.responsabile_rilevazione, x.trattamento_tipo, x.causa, x.trattamento, x.azione_correttiva, x.efficacia, x.stato, x.data_chiusura])]), "text/csv");
 
   return html`<div>
-    <${PageHeader} title="Registro NC" subtitle=${`Storico non conformità · ${rows.length} di ${N.length}`}>
+    <${PageHeader} title=${az === "service" ? "Registro NC · Mace Service" : "Registro NC"} subtitle=${`Storico non conformità ${aziendaLabel(az)} · ${rows.length} di ${N.length}`}>
       ${admin && html`<button class="btn outline" onClick=${esporta}><${Icon} n="download" /> Excel/CSV</button>
-        <a class="btn primary" href="#/nc"><${Icon} n="plus" /> Nuova NC</a>`}
+        <a class="btn primary" href=${"#/nc?az=" + az}><${Icon} n="plus" /> Nuova NC ${az === "service" ? "Service" : ""}</a>`}
     </${PageHeader}>
+    <${AziendaTabs} value=${az} onChange=${setAz} counts=${counts} />
+    ${az === "service" && html`<div class="az-banner"><img src=${LOGO_SERVICE} alt="Mace Service" /><span>Registro separato delle non conformità <b>MACE SERVICE</b></span></div>`}
     <${Card}>
       <div class="filters">
         <div class="search"><${Icon} n="search" /><input class="inp" placeholder="Cerca numero, controparte, materiale, descrizione…" value=${q} onInput=${(e) => setQ(e.target.value)} /></div>
