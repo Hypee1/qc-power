@@ -24,6 +24,12 @@ service cloud.firestore {
     match /ddt/{id}       { allow read: if member(); allow write: if isAdmin(); }
     match /commesse/{id}  { allow read: if member(); allow write: if isAdmin(); }
 
+    // ---------- Rientri trasformatori e assegnazione strumenti ----------
+    match /rientri/{id}            { allow read: if member(); allow write: if isAdmin(); }
+    match /operatori/{id}          { allow read: if member(); allow write: if isAdmin(); }
+    match /assegnazioni/{id}       { allow read: if member(); allow write: if isAdmin(); }
+    match /catalogo_strumenti/{id} { allow read: if member(); allow write: if isAdmin(); }
+
     // ---------- Allegati (file in base64, max ~1 MB per documento) ----------
     match /allegati/{id} {
       allow read: if member();
@@ -37,7 +43,7 @@ service cloud.firestore {
       allow create: if isGuest()
         && d().keys().hasOnly(['tipo', 'entity', 'entity_id', 'entity_label', 'testo', 'autore', 'email', 'stato', 'ts', 'dispositivo'])
         && d().tipo in ['sollecito', 'nota']
-        && d().entity in ['controlli', 'nc', 'ddt', 'commesse']
+        && d().entity in ['controlli', 'nc', 'ddt', 'commesse', 'rientri']
         && str(d().entity_id, 100) && str(d().entity_label, 200) && str(d().testo, 2000)
         && str(d().autore, 80) && str(d().dispositivo, 200)
         && d().email == email() && d().stato == 'nuova' && d().ts == request.time;

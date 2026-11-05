@@ -13,6 +13,22 @@ Copia del gestionale qualità (controlli di accettazione, NC, scadenziario, DDT,
 
 ---
 
+## Novità: Assegnazione Strumenti, Rientri Trasformatori, NC Mace Service
+
+**⚠ Da fare una volta:** Firebase Console → Firestore → **Regole** → incolla di nuovo tutto `firestore.rules` → **Pubblica**.
+Senza questo passaggio le nuove sezioni danno "accesso negato" (le regole non si aggiornano da GitHub).
+
+- **Assegnazione Strumenti** (`#/strumenti`): anagrafica operatori (nome, cognome, area: Avvolgeria / Montaggio / Trattamento / Collaudi / Altro + specifica, azienda Power o Service).
+  Assegnazione: azienda → operatore in ordine alfabetico → strumento (Metro 2M / 3M / 5M o «Nuovo…», che resta in elenco). Contatore dei giorni dall'assegnazione, restituzione, cronologia per operatore e per strumento, PDF e CSV del registro.
+- **Rientro Trasformatore** (`#/rientro`) e **Registro Rientri** (`#/registro-rientri`): scheda MAC PA4190/1.
+  Parte 1 accettazione (garanzia Sì/No/Da valutare, azienda, DDT, data, causa, mittente, dati di targa, accessori SI/NO con note, chi ha accettato).
+  Parte 2 collaudo elettrico e ispezione (prove OK/KO con note, riscontro all'apertura, lavori da preventivare) compilabile anche dopo, dal tasto **Collaudo** nel registro.
+  Registro con schede Power / Service / Tutte, filtri, PDF della singola scheda e PDF del registro.
+- **NC Mace Power / Mace Service**: alla creazione di una NC la scelta dell'azienda è obbligatoria. Service ha registro e numerazione separati e il suo logo su schermo e nel PDF. Le NC già esistenti restano MACE POWER.
+- Il backup JSON include anche rientri, operatori, assegnazioni ed elenco strumenti.
+
+---
+
 ## Messa in funzione (circa 15 minuti, una volta sola)
 
 ### 1. Firebase: crea i due utenti
