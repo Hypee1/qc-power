@@ -25,6 +25,7 @@ Senza questo passaggio le nuove sezioni danno "accesso negato" (le regole non si
   Parte 2 collaudo elettrico e ispezione (prove OK/KO con note, riscontro all'apertura, lavori da preventivare) compilabile anche dopo, dal tasto **Collaudo** nel registro.
   Registro con schede Power / Service / Tutte, filtri, PDF della singola scheda e PDF del registro.
 - **NC Mace Power / Mace Service**: alla creazione di una NC la scelta dell'azienda è obbligatoria. Service ha registro e numerazione separati e il suo logo su schermo e nel PDF. Le NC già esistenti restano MACE POWER.
+- **Resistenze Fuori Cassa** (`#/resistenze`): misura resistenze avvolgimenti AT/BT (fino a 3 letture, squilibrio), riporto a 75 °C, corrente nominale, perdite I²R e confronto automatico con la specifica (tolleranze IEC 60076-1 modificabili). Registro con esito, Pmax %, PDF singolo e registro, CSV, tasto Duplica.
 - Il backup JSON include anche rientri, operatori, assegnazioni ed elenco strumenti.
 
 ---
