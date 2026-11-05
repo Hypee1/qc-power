@@ -295,3 +295,57 @@ a.kpi:hover, .kpi-btn:hover { border-color: color-mix(in srgb, var(--c) 50%, var
   .page-actions .btn { flex: 1; }
 }
 @media print { .side, .top, .guest-bar, .sticky-save, .page-actions { display: none !important; } .card { break-inside: avoid; } }
+
+/* ===== MACE POWER / MACE SERVICE ===== */
+.az { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 7px 0 4px; border-radius: 3px; border: 1px solid var(--border); font: 600 10.5px "JetBrains Mono", monospace; letter-spacing: .06em; white-space: nowrap; vertical-align: middle; }
+.az img { width: 16px; height: 16px; border-radius: 2px; background: #fff; object-fit: contain; }
+.az.sm { height: 19px; font-size: 9.5px; } .az.sm img { width: 13px; height: 13px; }
+.az-power { color: var(--red); border-color: color-mix(in srgb, var(--red) 35%, transparent); background: color-mix(in srgb, var(--red) 9%, transparent); }
+.az-service { color: var(--fg); border-color: color-mix(in srgb, var(--red) 35%, var(--border)); background: var(--card2); }
+.az-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.az-opt { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 2px solid var(--border); border-radius: 8px; background: var(--card2); color: var(--fg); cursor: pointer; font: 700 16px Barlow, sans-serif; letter-spacing: .03em; text-align: left; transition: border-color .15s, background .15s; }
+.az-opt:hover { border-color: color-mix(in srgb, var(--primary) 55%, var(--border)); }
+.az-opt.on { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 9%, var(--card2)); }
+.az-opt b { flex: 1; }
+.az-logo { width: 56px; height: 56px; flex: none; display: grid; place-items: center; border-radius: 6px; background: #fff; overflow: hidden; }
+.az-logo img { width: 100%; height: 100%; object-fit: contain; }
+.az-bolt { width: 100%; height: 100%; display: grid; place-items: center; background: var(--primary); color: #fff; }
+.az-tabs .tab { display: inline-flex; align-items: center; gap: 6px; }
+.az-tab-logo { width: 18px; height: 18px; border-radius: 2px; background: #fff; object-fit: contain; }
+.az-banner { display: flex; align-items: center; gap: 12px; padding: 8px 12px; margin-bottom: 14px; border: 1px solid color-mix(in srgb, var(--red) 30%, var(--border)); border-radius: 6px; background: var(--card); font-size: 13px; }
+.az-banner img { width: 40px; height: 40px; border-radius: 4px; background: #fff; object-fit: contain; }
+.az-inline { display: flex; align-items: center; gap: 10px; min-height: 38px; flex-wrap: wrap; }
+
+/* ===== Segmenti (Sì/No, Olio/Resina…) ===== */
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.seg-b { height: 36px; padding: 0 14px; border: 0; border-right: 1px solid var(--border); background: var(--input); color: var(--fg); font: 600 13px Inter, sans-serif; cursor: pointer; }
+.seg-b:last-child { border-right: 0; } .seg-b:hover:not(:disabled) { background: var(--accent); } .seg-b:disabled { cursor: default; }
+.seg-b.on { background: var(--primary); color: #fff; } .seg-b.on.g { background: var(--green); } .seg-b.on.a { background: var(--amber); color: #111; }
+.form-grid.two { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.kv-grid .full { grid-column: 1 / -1; }
+
+/* ===== Tabelle SI/NO · OK/KO ===== */
+.chk-tbl td { padding: 5px 8px; } .chk-tbl .c, .tbl th.c { text-align: center; width: 58px; }
+.inp.sm { height: 32px; font-size: 13px; }
+.tick { width: 28px; height: 28px; border: 1.5px solid var(--muted-fg); border-radius: 4px; background: var(--input); color: var(--fg); font: 800 15px/1 Inter, sans-serif; cursor: pointer; display: inline-grid; place-items: center; }
+.tick:hover:not(:disabled) { border-color: var(--primary); } .tick:disabled { cursor: default; }
+.tick.on.v-si, .tick.on.v-ok { border-color: var(--green); color: var(--green); background: color-mix(in srgb, var(--green) 14%, var(--input)); }
+.tick.on.v-no { border-color: var(--zinc); color: var(--fg); }
+.tick.on.v-ko { border-color: var(--red); color: var(--red); background: color-mix(in srgb, var(--red) 14%, var(--input)); }
+.part-tabs .tab { display: inline-flex; align-items: center; gap: 8px; }
+
+/* ===== Assegnazione strumenti ===== */
+.op-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.op-card { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--card2); color: var(--fg); text-align: left; cursor: pointer; font: inherit; }
+.op-card:hover { border-color: color-mix(in srgb, var(--primary) 50%, var(--border)); } .op-card.off { opacity: .55; }
+.op-av { width: 42px; height: 42px; flex: none; border-radius: 50%; display: grid; place-items: center; font: 800 15px Barlow, sans-serif; color: #fff; }
+.op-av.av-p { background: var(--primary); } .op-av.av-s { background: #3f3f46; border: 2px solid var(--primary); }
+.op-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; } .op-t > small { color: var(--muted-fg); font-size: 12px; }
+.op-meta { display: flex; gap: 6px; align-items: center; margin: 3px 0; } .op-last { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.days { display: inline-block; font: 600 12px "JetBrains Mono", monospace; padding: 2px 7px; border-radius: 10px; background: var(--accent); white-space: nowrap; }
+.days.live { color: var(--amber); background: color-mix(in srgb, var(--amber) 13%, transparent); }
+.last-box { padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--card2); margin-top: 6px; }
+.link-row { cursor: pointer; } .link-row:hover b { text-decoration: underline; }
+@media (max-width: 560px) { .az-pick { grid-template-columns: 1fr; } .az-opt { padding: 10px 12px; } .az-logo { width: 44px; height: 44px; } .seg-b { padding: 0 10px; } }
+.field > .seg { align-self: flex-start; }
+@media (max-width: 560px) { .filters .search { flex-basis: 100%; } }
