@@ -45,3 +45,18 @@ export const CLASSIFICAZIONI = [
 ];
 export const TRATTAMENTI = ["accettato", "rifiutato", "rilavorato", "scartato", "altro"];
 export const ND = "Ancora non definito";
+
+// ---------- Rientri trasformatori (Mod. MAC PA4190/1) ----------
+export const GARANZIA = [{ v: "si", l: "Sì, in garanzia" }, { v: "no", l: "No" }, { v: "da_valutare", l: "Da valutare" }];
+export const ACCESSORI_RIENTRO = [
+  ["conservatore", "Conservatore d'olio"], ["essiccatore", "Essiccatore"], ["buchholz", "Relè Buchholz"], ["termometro", "Termometro"],
+  ["livello_olio", "Indicatore livello olio"], ["dgpt2", "DGPT2"], ["pt100", "Sonde PT100"], ["bulloneria_mt", "Bulloneria MT"],
+  ["bulloneria_bt", "Bulloneria BT"], ["banderuole", "Banderuole"], ["ruote", "Ruote"], ["cassetta_ausiliari", "Cassetta ausiliari"],
+  ["cert_olio", "Certificato olio"], ["cert_collaudo", "Certificato di collaudo"], ["altro", "Altro"],
+];
+export const PROVE_RIENTRO = [
+  ["tensione_applicata", "Isolamento a tensione applicata"], ["tensione_indotta", "Isolamento a tensione indotta"], ["vuoto", "Prova a vuoto"],
+  ["cortocircuito", "Verifica elettrica in cortocircuito"], ["rapporto", "Verifica rapporto di trasformazione"],
+  ["resistenza", "Misura resistenza avvolgimenti"], ["rigidita_olio", "Rigidità dielettrica su campione olio"], ["altro", "Altro"],
+];
+export const LAVORI_RIENTRO = [["manutenzione", "Manutenzione"], ["riparazione", "Riparazione"], ["rottamazione", "Rottamazione"]];

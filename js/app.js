@@ -16,6 +16,9 @@ import { AuditLog } from "./views/audit.js";
 import { Console } from "./views/console.js";
 import { Segnalazioni } from "./views/segnalazioni.js";
 import { Impostazioni } from "./views/impostazioni.js";
+import { Strumenti } from "./views/strumenti.js";
+import { RientroForm } from "./views/rientro.js";
+import { RegistroRientri } from "./views/registro-rientri.js";
 
 // ---------- Tema ----------
 const getTheme = () => { try { return localStorage.getItem("qc-theme") || "dark"; } catch (e) { return "dark"; } };
@@ -38,8 +41,11 @@ const NAV = [
   { p: "/", l: "Dashboard", i: "dashboard" },
   { p: "/controllo", l: "Controllo Accettazione", i: "clipboard", admin: true },
   { p: "/nc", l: "Non Conformità", i: "alert", admin: true },
+  { p: "/rientro", l: "Rientro Trasformatore", i: "undo", admin: true },
+  { p: "/strumenti", l: "Assegnazione Strumenti", i: "ruler" },
   { p: "/registro-controlli", l: "Registro Controlli", i: "list" },
   { p: "/registro-nc", l: "Registro NC", i: "file" },
+  { p: "/registro-rientri", l: "Registro Rientri", i: "zap" },
   { p: "/scadenziario", l: "Scadenziario", i: "calendar" },
   { p: "/archivio", l: "Archivio & PDF", i: "archive" },
   { p: "/ddt", l: "Certificati & DDT", i: "truck" },
@@ -57,7 +63,10 @@ function view(route) {
   switch (a) {
     case "": return html`<${Dashboard} />`;
     case "controllo": return b ? html`<${ControlloForm} id=${b} key=${b} />` : admin ? html`<${ControlloForm} key="new" />` : null;
-    case "nc": return b ? html`<${NCForm} id=${b} key=${b} />` : admin ? html`<${NCForm} key="new" />` : null;
+    case "nc": return b ? html`<${NCForm} id=${b} key=${b} />` : admin ? html`<${NCForm} key=${"new" + (location.hash.split("?")[1] || "")} />` : null;
+    case "rientro": return b ? html`<${RientroForm} id=${b} key=${b} />` : admin ? html`<${RientroForm} key=${"new" + (location.hash.split("?")[1] || "")} />` : null;
+    case "registro-rientri": return html`<${RegistroRientri} />`;
+    case "strumenti": return html`<${Strumenti} />`;
     case "registro-controlli": return html`<${RegistroControlli} />`;
     case "registro-nc": return html`<${RegistroNC} />`;
     case "scadenziario": return html`<${Scadenziario} />`;

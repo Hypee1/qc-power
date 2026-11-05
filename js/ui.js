@@ -52,6 +52,10 @@ const P = {
   bolt: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
   key: '<path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/>',
   filter: '<path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>',
+  ruler: '<path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z"/><path d="m14.5 12.5 2-2"/><path d="m11.5 9.5 2-2"/><path d="m8.5 6.5 2-2"/><path d="m17.5 15.5 2-2"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5 5.5 5.5 0 0 1-5.5 5.5H11"/>',
+  zap: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
   layers: '<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
 };
 export function Icon({ n, s = 16, cls = "" }) {
@@ -65,6 +69,9 @@ const BADGE = {
   PASS: ["PASS", "green"], FAIL: ["FAIL", "red"], scaduta: ["Scaduta", "red"], in_scadenza: ["In scadenza", "amber"],
   in_corso: ["In corso", "blue"], ddt: ["DDT", "blue"], certificato: ["Certificato", "violet"],
   nuova: ["Nuova", "red"], letta: ["Letta", "amber"], risolta: ["Risolta", "green"],
+  aperto: ["Aperto", "red"], chiuso: ["Chiuso", "green"], da_collaudare: ["Da collaudare", "amber"], collaudato: ["Collaudato", "green"], in_collaudo: ["Collaudo in corso", "blue"],
+  g_si: ["In garanzia", "green"], g_no: ["Fuori garanzia", "zinc"], g_da_valutare: ["Garanzia da valutare", "amber"],
+  in_uso: ["In uso", "amber"], restituito: ["Restituito", "green"], olio: ["Olio", "amber"], resina: ["Resina", "violet"],
   sollecito: ["Sollecito", "red"], nota: ["Nota", "blue"], admin: ["Admin", "red"], ospite: ["Ospite", "blue"],
 };
 export function Badge({ v, label }) {
