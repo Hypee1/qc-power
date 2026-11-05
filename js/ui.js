@@ -69,6 +69,7 @@ const BADGE = {
   PASS: ["PASS", "green"], FAIL: ["FAIL", "red"], scaduta: ["Scaduta", "red"], in_scadenza: ["In scadenza", "amber"],
   in_corso: ["In corso", "blue"], ddt: ["DDT", "blue"], certificato: ["Certificato", "violet"],
   nuova: ["Nuova", "red"], letta: ["Letta", "amber"], risolta: ["Risolta", "green"],
+  nd: ["Senza specifica", "zinc"],
   aperto: ["Aperto", "red"], chiuso: ["Chiuso", "green"], da_collaudare: ["Da collaudare", "amber"], collaudato: ["Collaudato", "green"], in_collaudo: ["Collaudo in corso", "blue"],
   g_si: ["In garanzia", "green"], g_no: ["Fuori garanzia", "zinc"], g_da_valutare: ["Garanzia da valutare", "amber"],
   in_uso: ["In uso", "amber"], restituito: ["Restituito", "green"], olio: ["Olio", "amber"], resina: ["Resina", "violet"],

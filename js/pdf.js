@@ -261,3 +261,88 @@ export async function pdfRegistroAssegnazioni(rows, filtri) {
   audit("pdf_download", "assegnazioni", "", "registro assegnazioni PDF");
   save(doc, `Registro_Strumenti_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
+
+// ================= RESISTENZE AVVOLGIMENTI FUORI CASSA =================
+// Helvetica dei PDF non ha Ω e ≤: li scrivo per esteso
+const pdfTxt = (s) => String(s ?? "").replace(/Ω/g, "Ohm").replace(/≤/g, "<=").replace(/µ/g, "u").replace(/²/g, "^2");
+
+export async function pdfResistenze(r) {
+  const { calcVerifica, fmtOhm, fmtW, fmtA, fmtPct } = await import("./resistenze-calc.js");
+  const L = await load(); const doc = new L.jsPDF({ unit: "mm", format: "a4" });
+  const V = calcVerifica(r), P = V.P, S = V.S;
+  const esitoTxt = { conforme: "CONFORME", non_conforme: "NON CONFORME", nd: "SENZA SPECIFICA" }[V.esito];
+  let y = header(doc, "CONTROLLO RESISTENZE AVVOLGIMENTI", `Fuori cassa · ${r.codice_progetto || ""}`);
+  L.autoTable(doc, { startY: y, theme: "grid", styles: { fontSize: 9.5, cellPadding: 2.4, halign: "center", fontStyle: "bold" },
+    head: [["Esito", "Perdite misurate a 75 °C", "Perdite di specifica", "Scostamento (Pmax)"]], headStyles: { fillColor: [244, 244, 245], textColor: 60, fontSize: 7.5, halign: "center" },
+    body: [[esitoTxt, fmtW(V.mTot), fmtW(V.sTot), fmtPct(V.pmax)]],
+    didParseCell: (d) => { if (d.section !== "body") return;
+      if (d.column.index === 0) d.cell.styles.textColor = V.esito === "conforme" ? GREEN : V.esito === "non_conforme" ? RED : [90, 90, 90];
+      if (d.column.index === 3 && V.pmax !== null) d.cell.styles.textColor = V.pmax <= V.toll.p_tot ? GREEN : RED; } });
+  y = doc.lastAutoTable.finalY + 5;
+  y = kv(doc, y, [["Codice progetto", r.codice_progetto], ["Matricola", r.matricola], ["Potenza nominale", r.potenza_kva ? r.potenza_kva + " kVA" : ""], ["Data misura", fmtDate(r.data)],
+    ["Commessa", r.commessa], ["Eseguito da", r.eseguito_da], ["Strumento", r.strumento], ["Note", r.note]], L);
+  const w = (x) => x || {};
+  const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : "—");
+  const unit = { ohm: "Ohm", mohm: "mOhm", uohm: "uOhm" };
+  const lett = (x) => [x.r1, x.r2, x.r3].filter((v) => v !== "" && v !== undefined).join(" / ") + (x.r1 ? " " + unit[x.unita || "ohm"] : "");
+  L.autoTable(doc, { startY: y, theme: "grid", styles: { fontSize: 8.5, cellPadding: 1.8 }, headStyles: { fillColor: DARK, fontSize: 8.5 },
+    columnStyles: { 0: { fontStyle: "bold", fillColor: [244, 244, 245], cellWidth: 62 }, 1: { halign: "right" }, 2: { halign: "right" } },
+    head: [["Avvolgimento", "Primario (AT)", "Secondario (BT)"]],
+    body: [
+      ["Collegamento", cap(w(r.pri).collegamento), cap(w(r.sec).collegamento)],
+      ["Conduttore (K)", cap(w(r.pri).materiale), cap(w(r.sec).materiale)],
+      ["Letture tra i morsetti", lett(w(r.pri)) || "—", lett(w(r.sec)) || "—"],
+      ["Temperatura avvolgimento", w(r.pri).temp ? w(r.pri).temp + " °C" : "—", w(r.sec).temp ? w(r.sec).temp + " °C" : "—"],
+      ["R media misurata", fmtOhm(P.rMedia), fmtOhm(S.rMedia)],
+      ["Squilibrio letture", fmtPct(P.squilibrio, false), fmtPct(S.squilibrio, false)],
+      ["R a 75 °C (tra morsetti)", fmtOhm(P.r75), fmtOhm(S.r75)],
+      ["R di fase a 75 °C", fmtOhm(P.rFase75), fmtOhm(S.rFase75)],
+      ["Tensione nominale", w(r.pri).tensione ? w(r.pri).tensione + " V" : "—", w(r.sec).tensione ? w(r.sec).tensione + " V" : "—"],
+      ["Corrente di linea / di fase", `${fmtA(P.iLinea)} / ${fmtA(P.iFase)}`, `${fmtA(S.iLinea)} / ${fmtA(S.iFase)}`],
+      ["Perdite I²R a 75 °C (trifase)", fmtW(P.pTot), fmtW(S.pTot)],
+    ].map((row) => row.map(pdfTxt)),
+    didParseCell: (d) => { if (d.section === "body" && (d.row.index === 6 || d.row.index === 10) && d.column.index > 0) d.cell.styles.fontStyle = "bold"; } });
+  y = doc.lastAutoTable.finalY + 5;
+  y = bar(doc, y, "VERIFICA RISPETTO ALLA SPECIFICA");
+  L.autoTable(doc, { startY: y, theme: "grid", styles: { fontSize: 8.5, cellPadding: 1.8 }, headStyles: { fillColor: DARK, fontSize: 8.5 },
+    columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right", fontStyle: "bold" }, 4: { halign: "center" }, 5: { halign: "center", fontStyle: "bold" } },
+    head: [["Grandezza", "Specifica", "Misurato a 75 °C", "Scostamento", "Tolleranza", "Esito"]],
+    body: V.righe.map((x) => [x.label, x.key.startsWith("r") ? fmtOhm(x.spec) : fmtW(x.spec), x.key.startsWith("r") ? fmtOhm(x.mis) : fmtW(x.mis), fmtPct(x.dev),
+      (x.mode === "abs" ? "±" : "max +") + x.toll + " %", x.esito ? x.esito.toUpperCase() : "—"].map(pdfTxt)),
+    didParseCell: (d) => { if (d.section !== "body") return; const e = V.righe[d.row.index].esito;
+      if ((d.column.index === 5 || d.column.index === 3) && e) d.cell.styles.textColor = e === "ok" ? GREEN : RED;
+      if (V.righe[d.row.index].key === "p_tot") d.cell.styles.fillColor = [244, 244, 245]; } });
+  y = doc.lastAutoTable.finalY + 4;
+  doc.setFontSize(7); doc.setTextColor(110);
+  doc.text(pdfTxt("R75 = R · (K + 75) / (K + T), K = 235 rame / 225 alluminio · perdite = 3 · Rfase · Ifase²  (= 1,5 · R75 · I²)"), 14, y); doc.setTextColor(0); y += 6;
+  const dm = r.dim || {}, has = Object.values(dm).some(Boolean), mm = (v) => (v ? v + " mm" : "");
+  if (has) {
+    y = bar(doc, ensure(doc, y, 30), "DATI AVVOLGIMENTO BT / AT");
+    y = kv(doc, y, [["BT dim. interne X × Y", dm.bt_int_x || dm.bt_int_y ? `${dm.bt_int_x || "—"} × ${dm.bt_int_y || "—"} mm` : ""], ["BT dim. esterne X × Y", dm.bt_est_x || dm.bt_est_y ? `${dm.bt_est_x || "—"} × ${dm.bt_est_y || "—"} mm` : ""],
+      ["Radiale BT", mm(dm.bt_radiale)], ["Radiale AT esterno", mm(dm.at_radiale)], ["Diametro esterno AT", mm(dm.at_diam_est)],
+      ["Conduttore larg. × spess.", dm.cond_larghezza || dm.cond_spessore ? `${dm.cond_larghezza || "—"} × ${dm.cond_spessore || "—"} mm` : ""]], L);
+  }
+  y = ensure(doc, y, 31); firma(doc, y, "Firma operatore", r.firma); y += 36;
+  await photos(doc, y, r.id);
+  footer(doc, `Resistenze fuori cassa · ${r.codice_progetto || ""}${r.matricola ? " · matr. " + r.matricola : ""}`);
+  audit("pdf_download", "resistenze", r.id, r.codice_progetto);
+  save(doc, `Resistenze_${(r.codice_progetto || "").replace(/\W+/g, "-")}_${r.data || ""}.pdf`);
+}
+
+export async function pdfRegistroResistenze(rows, filtri) {
+  const { calcVerifica, fmtOhm, fmtW, fmtPct } = await import("./resistenze-calc.js");
+  const L = await load(); const doc = new L.jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
+  let y = header(doc, "REGISTRO RESISTENZE FUORI CASSA", `${rows.length} misure · ${filtri || ""}`);
+  const V = rows.map((x) => calcVerifica(x));
+  L.autoTable(doc, { startY: y, theme: "striped", styles: { fontSize: 8, cellPadding: 1.7 }, headStyles: { fillColor: RED, fontSize: 8 },
+    head: [["Data", "Codice progetto", "Matricola", "kVA", "Eseguito da", "R AT 75 °C", "R BT 75 °C", "Perdite AT", "Perdite BT", "Perdite tot.", "Perdite spec.", "Pmax", "Esito"]],
+    body: rows.map((x, i) => { const v = V[i]; return [fmtDate(x.data), x.codice_progetto || "", x.matricola || "", x.potenza_kva || "", x.eseguito_da || "", fmtOhm(v.P.r75), fmtOhm(v.S.r75),
+      fmtW(v.P.pTot), fmtW(v.S.pTot), fmtW(v.mTot), fmtW(v.sTot), fmtPct(v.pmax), { conforme: "Conforme", non_conforme: "NON CONFORME", nd: "n.d." }[v.esito]].map(pdfTxt); }),
+    columnStyles: { 1: { fontStyle: "bold" }, 11: { fontStyle: "bold", halign: "right" }, 5: { halign: "right" }, 6: { halign: "right" }, 9: { halign: "right" }, 10: { halign: "right" } },
+    didParseCell: (d) => { if (d.section !== "body") return; const v = V[d.row.index];
+      if (d.column.index === 12) d.cell.styles.textColor = v.esito === "conforme" ? GREEN : v.esito === "non_conforme" ? RED : [110, 110, 110];
+      if (d.column.index === 11 && v.pmax !== null) d.cell.styles.textColor = v.pmax <= v.toll.p_tot ? GREEN : RED; } });
+  footer(doc, "Registro resistenze avvolgimenti fuori cassa");
+  audit("pdf_download", "resistenze", "", "registro resistenze PDF");
+  save(doc, `Registro_Resistenze_${new Date().toISOString().slice(0, 10)}.pdf`);
+}

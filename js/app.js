@@ -19,6 +19,8 @@ import { Impostazioni } from "./views/impostazioni.js";
 import { Strumenti } from "./views/strumenti.js";
 import { RientroForm } from "./views/rientro.js";
 import { RegistroRientri } from "./views/registro-rientri.js";
+import { ResistenzaForm } from "./views/resistenze.js";
+import { RegistroResistenze } from "./views/registro-resistenze.js";
 
 // ---------- Tema ----------
 const getTheme = () => { try { return localStorage.getItem("qc-theme") || "dark"; } catch (e) { return "dark"; } };
@@ -46,6 +48,7 @@ const NAV = [
   { p: "/registro-controlli", l: "Registro Controlli", i: "list" },
   { p: "/registro-nc", l: "Registro NC", i: "file" },
   { p: "/registro-rientri", l: "Registro Rientri", i: "zap" },
+  { p: "/resistenze", l: "Resistenze Fuori Cassa", i: "activity", match: "/resistenza" },
   { p: "/scadenziario", l: "Scadenziario", i: "calendar" },
   { p: "/archivio", l: "Archivio & PDF", i: "archive" },
   { p: "/ddt", l: "Certificati & DDT", i: "truck" },
@@ -67,6 +70,8 @@ function view(route) {
     case "rientro": return b ? html`<${RientroForm} id=${b} key=${b} />` : admin ? html`<${RientroForm} key=${"new" + (location.hash.split("?")[1] || "")} />` : null;
     case "registro-rientri": return html`<${RegistroRientri} />`;
     case "strumenti": return html`<${Strumenti} />`;
+    case "resistenze": return html`<${RegistroResistenze} />`;
+    case "resistenza": return b ? html`<${ResistenzaForm} id=${b} key=${b} />` : admin ? html`<${ResistenzaForm} key=${"new" + (location.hash.split("?")[1] || "")} />` : null;
     case "registro-controlli": return html`<${RegistroControlli} />`;
     case "registro-nc": return html`<${RegistroNC} />`;
     case "scadenziario": return html`<${Scadenziario} />`;
@@ -173,7 +178,7 @@ function Shell({ route }) {
       <div class="brand"><div class="logo"><${Icon} n="bolt" s=${18} /></div><div class="brand-t"><b>${APP.nome}</b><small>${APP.sotto}</small></div></div>
       <nav>${NAV.filter((n) => !n.admin || admin).map((n) => n.sep
         ? html`<div class="nav-sep">${n.sep}</div>`
-        : html`<a href=${"#" + n.p} class=${"nav" + (base === n.p ? " on" : "")} title=${n.l}><${Icon} n=${n.i} /><span>${n.l}</span>
+        : html`<a href=${"#" + n.p} class=${"nav" + (base === n.p || base === n.match ? " on" : "")} title=${n.l}><${Icon} n=${n.i} /><span>${n.l}</span>
             ${n.badge && nuove > 0 && html`<em class="nav-badge">${nuove}</em>`}</a>`)}</nav>
       <button class="collapse" onClick=${() => setCollapsed(!collapsed)}><${Icon} n=${collapsed ? "right" : "left"} /><span>Comprimi</span></button>
     </aside>
