@@ -8,7 +8,7 @@ export const AZIONI = {
   import: ["Import dati", "violet"], password: ["Cambio password", "amber"], ripresa_sessione: ["Ripresa sessione", "zinc"],
 };
 const CAT = { accessi: ["login", "logout", "timeout", "login_fallito"], modifiche: ["create", "update", "delete", "allegato", "import"], documenti: ["pdf_download", "view"], ospite: ["sollecito", "nota"] };
-const ENT = { controlli: "controllo", nc: "nc", ddt: "ddt", commesse: "commessa", segnalazioni: "segnalazione" };
+const ENT = { controlli: "controllo", nc: "nc", ddt: "ddt", commesse: "commessa", segnalazioni: "segnalazione", audit_clienti: "audit cliente", eventi: "evento", soggetti: "anagrafica" };
 const GIORNI = ["domenica", "lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato"];
 const MESI = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"];
 
@@ -22,11 +22,11 @@ export function AuditLog() {
   const f = rows.filter((r) => (!cat || (CAT[cat] || []).includes(r.action)) && (!chi || r.user_role === chi));
   const groups = [];
   f.forEach((r) => { const d = toDate(r.ts) || new Date(0); const k = d.toDateString(); let g = groups[groups.length - 1]; if (!g || g.k !== k) groups.push((g = { k, d, items: [] })); g.items.push(r); });
-  const link = (r) => r.entity === "controlli" ? "#/controllo/" + r.entity_id : r.entity === "nc" ? "#/nc/" + r.entity_id : r.entity === "ddt" ? "#/ddt?" + r.entity_id : r.entity === "commesse" ? "#/commesse?" + r.entity_id : null;
+  const link = (r) => r.entity === "controlli" ? "#/controllo/" + r.entity_id : r.entity === "nc" ? "#/nc/" + r.entity_id : r.entity === "audit_clienti" ? "#/audit-cliente/" + r.entity_id : r.entity === "rientri" ? "#/rientro/" + r.entity_id : null;
   const esporta = () => download("audit_log.csv", csv([["Data/ora", "Azione", "Entità", "ID", "Descrizione", "Dettagli", "Utente", "Ruolo"],
     ...f.map((r) => [fmtDT(r.ts), (AZIONI[r.action] || [r.action])[0], r.entity, r.entity_id, r.label, r.details, r.user_email, r.user_role])]), "text/csv");
   return html`<div>
-    <${PageHeader} title="Audit Log" subtitle="Tracciamento accessi e operazioni di sistema">
+    <${PageHeader} title="Log attività" subtitle="Tracciamento accessi e operazioni di sistema">
       <button class="btn outline" onClick=${esporta}><${Icon} n="download" /> CSV</button><button class="btn outline" onClick=${load}><${Icon} n="refresh" /> Aggiorna</button>
     </${PageHeader}>
     <${Card}>

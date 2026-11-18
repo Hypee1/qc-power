@@ -1,6 +1,7 @@
 import { html, useState, useEffect, useRef, Icon, Badge, PageHeader, Card, Field, Spinner, Select, toast, confirmDialog, isoDay, fmtDate, fmtDT, go } from "../ui.js";
 import { get, create, update, remove, isAdmin, audit, list, session } from "../store.js";
-import { ORIGINI_NC, CLASSIFICAZIONI, TRATTAMENTI, ND } from "../config.js";
+import { ORIGINI_NC, CLASSIFICAZIONI, TRATTAMENTI, ND, CRITICITA, critOf } from "../config.js";
+import { NomeInput, registraNomi, indiceNomi, canonico } from "../nomi.js";
 import { SignaturePad, Allegati, flushPending } from "../widgets.js";
 import { GuestPanel } from "../guest.js";
 import { pdfNC } from "../pdf.js";
@@ -12,7 +13,7 @@ const STEPS = [
   { n: 4, l: "Trattamento", i: "wand" }, { n: 5, l: "Efficacia", i: "checkCircle" }, { n: 6, l: "Stato", i: "history" },
 ];
 const vuota = () => ({
-  azienda: "", numero_report: "", data: isoDay(), documento_riferimento: "", origine_nc: "", controparte: "", classificazione: "",
+  azienda: "", numero_report: "", data: isoDay(), documento_riferimento: "", origine_nc: "", controparte: "", classificazione: "", criticita: "",
   materiale_descrizione: "", quantita: "", quantita_definitiva: false, descrizione_nc: "", responsabile_rilevazione: "",
   firma_rilevazione: null, trattamento_tipo: "", causa: "", trattamento: "", data_completamento: "", firma_trattamento: null,
   efficacia: "", azione_correttiva: "", data_azione: "", data_verifica_efficacia: "", firma_efficacia: null,
@@ -22,6 +23,15 @@ const vuota = () => ({
 function NDCheck({ value, onSet, disabled }) {
   if (disabled) return null;
   return html`<label class="chk small"><input type="checkbox" checked=${value === ND} onChange=${(e) => onSet(e.target.checked ? ND : "")} /> Non disponibile</label>`;
+}
+
+// Scelta del livello di criticità: 5 pulsanti con spiegazione
+export function CritPicker({ value, onChange, disabled }) {
+  const sel = critOf(value);
+  return html`<div><div class="crit-pick">${CRITICITA.map((c) => html`<button type="button" key=${c.v} disabled=${disabled} title=${c.d}
+    class=${"crit c-" + c.c + (String(value) === c.v ? " on" : "")} onClick=${() => onChange(String(value) === c.v ? "" : c.v)}>
+    <b>${c.v}</b><span>${c.s}</span></button>`)}</div>
+    <small class="hint">${sel ? sel.d : "Scegli da 1 (trascurabile) a 5 (critica): serve per i report di fine anno."}</small></div>`;
 }
 
 export function NCForm({ id }) {
@@ -71,7 +81,6 @@ export function NCForm({ id }) {
   const dup = numeroDuplicato(all.filter((y) => aziendaOf(y) === (az || "power")), n.numero_report, id);
   const sc = statoScadenza(n);
   const fl = n.firma_legacy || {};
-  const controparti = fornitori(all, "controparte");
 
   // Domanda obbligatoria prima di compilare una nuova NC
   if (!id && !n.azienda) return html`<div>
@@ -87,7 +96,9 @@ export function NCForm({ id }) {
     if (!n.numero_report.trim()) { setStep(1); return toast.err("Inserisci il numero report"); }
     if (!n.data) { setStep(1); return toast.err("Inserisci la data"); }
     if (dup && !(await confirmDialog("Numero già usato", `Esiste già una NC ${aziendaLabel(az)} con numero ${n.numero_report}. Salvare comunque?`, "Salva comunque"))) return;
-    const body = { ...n, azienda: az };
+    const idx = await indiceNomi().catch(() => new Map());
+    const body = { ...n, azienda: az, controparte: canonico(idx, n.controparte) };
+    if (!body.criticita && !(await confirmDialog("Livello di criticità mancante", "Non hai indicato il livello di criticità (serve per il report di fine anno). Salvare comunque?", "Salva comunque"))) { setStep(1); return; }
     if (body.stato === "chiusa") {
       if (!body.data_chiusura) body.data_chiusura = isoDay();
       const miss = [!body.descrizione_nc && "descrizione", !body.trattamento_tipo && "tipo trattamento", !body.azione_correttiva && "azione correttiva"].filter(Boolean);
@@ -95,6 +106,7 @@ export function NCForm({ id }) {
     } else body.data_chiusura = body.data_chiusura || "";
     setBusy(true);
     try {
+      await registraNomi([[body.controparte, "controparte"]]);
       if (id) { await update("nc", id, body, body.numero_report); setN(body); toast.ok("NC aggiornata"); }
       else {
         const r = await create("nc", { ...body, uid: crypto.randomUUID() }, body.numero_report);
@@ -129,9 +141,9 @@ export function NCForm({ id }) {
       <${Field} label="Data">${date("data")}</${Field}>
       <${Field} label="Documento riferimento">${inp("documento_riferimento", "es. DDT 304/2026, Commessa 25/00139")}</${Field}>
       <${Field} label="Origine NC"><${Select} value=${n.origine_nc} disabled=${ro} options=${[...ORIGINI_NC, ...(n.origine_nc && !ORIGINI_NC.includes(n.origine_nc) ? [n.origine_nc] : [])]} onChange=${(v) => set("origine_nc", v)} /></${Field}>
-      <${Field} label="Controparte (fornitore/cliente)"><input class="inp" list="dl-cp" value=${n.controparte} disabled=${ro} onInput=${(e) => set("controparte", e.target.value)} />
-        <datalist id="dl-cp">${controparti.map((c) => html`<option value=${c} />`)}</datalist></${Field}>
+      <${Field} label="Controparte (fornitore/cliente)"><${NomeInput} tipo="controparte" value=${n.controparte} disabled=${ro} onChange=${(v) => set("controparte", v)} /></${Field}>
       <${Field} label="Classificazione"><${Select} value=${n.classificazione} disabled=${ro} placeholder="RF / NC / RC" options=${CLASSIFICAZIONI} onChange=${(v) => set("classificazione", v)} /></${Field}>
+      <${Field} label="Livello di criticità *" full><${CritPicker} value=${n.criticita} disabled=${ro} onChange=${(v) => set("criticita", v)} /></${Field}>
       ${n.funzione && html`<${Field} label="Funzione (vecchio gestionale)" full><input class="inp" value=${n.funzione} disabled /></${Field}>`}
     </div>`,
     2: html`<div class="form-grid">
@@ -175,7 +187,7 @@ export function NCForm({ id }) {
   return html`<div>
     <a class="back" href="#/registro-nc"><${Icon} n="back" s=${14} /> Registro NC</a>
     <${PageHeader} title=${id ? "Non Conformità" : "Nuova Non Conformità"} subtitle=${n.numero_report}>
-      <${AziendaTag} v=${az} /> <${Badge} v=${n.stato} />${sc && sc.status !== "in_corso" && html` <${Badge} v=${sc.status} />`}
+      <${AziendaTag} v=${az} /> ${n.criticita && html`<${Badge} v=${"c" + n.criticita} />`} <${Badge} v=${n.stato} />${sc && sc.status !== "in_corso" && html` <${Badge} v=${sc.status} />`}
       ${id && html`<button class="btn outline" onClick=${() => pdfNC({ ...n, id, azienda: az })}><${Icon} n="download" /> PDF</button>`}
       ${admin && id && html`<button class="btn ghost danger-t" title="Elimina" onClick=${elimina}><${Icon} n="trash" /></button>`}
       ${admin && html`<button class="btn primary" disabled=${busy} onClick=${salva}>${busy ? html`<span class="spin sm"></span>` : html`<${Icon} n="save" />`} Salva</button>`}

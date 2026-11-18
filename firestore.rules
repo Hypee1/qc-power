@@ -31,10 +31,22 @@ service cloud.firestore {
     match /catalogo_strumenti/{id} { allow read: if member(); allow write: if isAdmin(); }
     match /resistenze/{id}         { allow read: if member(); allow write: if isAdmin(); }
 
+    // ---------- Audit dei clienti, calendario eventi, anagrafica fornitori/clienti ----------
+    match /audit_clienti/{id}      { allow read: if member(); allow write: if isAdmin(); }
+    match /eventi/{id}             { allow read: if member(); allow write: if isAdmin(); }
+    match /soggetti/{id}           { allow read: if member(); allow write: if isAdmin(); }
+
     // ---------- Allegati (file in base64, max ~1 MB per documento) ----------
     match /allegati/{id} {
       allow read: if member();
       allow create, update: if isAdmin() && str(d().data, 1000000) && str(d().parent_id, 100);
+      allow delete: if isAdmin();
+    }
+
+    // Parti dei file grandi (es. report PDF degli audit oltre ~900 KB)
+    match /allegati_parti/{id} {
+      allow read: if member();
+      allow create, update: if isAdmin() && str(d().data, 1000000) && str(d().att_id, 100);
       allow delete: if isAdmin();
     }
 
@@ -44,7 +56,7 @@ service cloud.firestore {
       allow create: if isGuest()
         && d().keys().hasOnly(['tipo', 'entity', 'entity_id', 'entity_label', 'testo', 'autore', 'email', 'stato', 'ts', 'dispositivo'])
         && d().tipo in ['sollecito', 'nota']
-        && d().entity in ['controlli', 'nc', 'ddt', 'commesse', 'rientri', 'resistenze']
+        && d().entity in ['controlli', 'nc', 'ddt', 'commesse', 'rientri', 'resistenze', 'audit_clienti']
         && str(d().entity_id, 100) && str(d().entity_label, 200) && str(d().testo, 2000)
         && str(d().autore, 80) && str(d().dispositivo, 200)
         && d().email == email() && d().stato == 'nuova' && d().ts == request.time;

@@ -9,9 +9,10 @@ import { RegistroControlli } from "./views/registro-controlli.js";
 import { NCForm } from "./views/nc.js";
 import { RegistroNC } from "./views/registro-nc.js";
 import { Scadenziario } from "./views/scadenziario.js";
-import { Archivio } from "./views/archivio.js";
-import { DDT } from "./views/ddt.js";
-import { Commesse } from "./views/commesse.js";
+import { Ricerca } from "./views/ricerca.js";
+import { AuditClienteForm, RegistroAudit } from "./views/audit-clienti.js";
+import { ReportNC } from "./views/report-nc.js";
+import { Anagrafica } from "./views/anagrafica.js";
 import { AuditLog } from "./views/audit.js";
 import { Console } from "./views/console.js";
 import { Segnalazioni } from "./views/segnalazioni.js";
@@ -22,8 +23,14 @@ import { RegistroRientri } from "./views/registro-rientri.js";
 import { ResistenzaForm } from "./views/resistenze.js";
 import { RegistroResistenze } from "./views/registro-resistenze.js";
 
-// ---------- Tema ----------
-const getTheme = () => { try { return localStorage.getItem("qc-theme") || "dark"; } catch (e) { return "dark"; } };
+// ---------- Tema: bianco, nero, grigio scuro, grigio chiaro ----------
+export const TEMI = [
+  { v: "light", l: "Bianco", sw: ["#ffffff", "#e4e4e7"] },
+  { v: "graylight", l: "Grigio chiaro", sw: ["#e6e7ea", "#c9cbd0"] },
+  { v: "graydark", l: "Grigio scuro", sw: ["#2b2d31", "#45474e"] },
+  { v: "dark", l: "Nero", sw: ["#09090b", "#26262b"] },
+];
+const getTheme = () => { try { const t = localStorage.getItem("qc-theme"); return TEMI.some((x) => x.v === t) ? t : "dark"; } catch (e) { return "dark"; } };
 const applyTheme = (t) => { document.documentElement.dataset.theme = t; try { localStorage.setItem("qc-theme", t); } catch (e) { } };
 applyTheme(getTheme());
 
@@ -39,24 +46,31 @@ function useRoute() {
   return r;
 }
 
+// Menu raggruppato per argomento: ogni modulo ha accanto il suo registro
 const NAV = [
   { p: "/", l: "Dashboard", i: "dashboard" },
-  { p: "/controllo", l: "Controllo Accettazione", i: "clipboard", admin: true },
-  { p: "/nc", l: "Non Conformità", i: "alert", admin: true },
-  { p: "/rientro", l: "Rientro Trasformatore", i: "undo", admin: true },
-  { p: "/strumenti", l: "Assegnazione Strumenti", i: "ruler" },
+  { p: "/scadenziario", l: "Calendario & Scadenze", i: "calendar" },
+  { sep: "Accettazione" },
+  { p: "/controllo", l: "Nuovo Controllo", i: "clipboard", admin: true },
   { p: "/registro-controlli", l: "Registro Controlli", i: "list" },
+  { sep: "Non Conformità" },
+  { p: "/nc", l: "Nuova NC", i: "alert", admin: true },
   { p: "/registro-nc", l: "Registro NC", i: "file" },
+  { p: "/report-nc", l: "Report annuale", i: "chart" },
+  { sep: "Audit clienti" },
+  { p: "/audit-cliente", l: "Nuovo Audit", i: "award", admin: true },
+  { p: "/registro-audit", l: "Registro Audit", i: "shield" },
+  { sep: "Rientri & Produzione" },
+  { p: "/rientro", l: "Rientro Trasformatore", i: "undo", admin: true },
   { p: "/registro-rientri", l: "Registro Rientri", i: "zap" },
   { p: "/resistenze", l: "Resistenze Fuori Cassa", i: "activity", match: "/resistenza" },
-  { p: "/scadenziario", l: "Scadenziario", i: "calendar" },
-  { p: "/archivio", l: "Archivio & PDF", i: "archive" },
-  { p: "/ddt", l: "Certificati & DDT", i: "truck" },
-  { p: "/commesse", l: "Commesse", i: "box" },
+  { p: "/strumenti", l: "Assegnazione Strumenti", i: "ruler" },
+  { sep: "Anagrafiche" },
+  { p: "/anagrafica", l: "Fornitori & Clienti", i: "building" },
   { sep: "Amministrazione", admin: true },
   { p: "/segnalazioni", l: "Segnalazioni", i: "bell", admin: true, badge: true },
   { p: "/console", l: "Console accessi", i: "terminal", admin: true },
-  { p: "/audit", l: "Audit Log", i: "history", admin: true },
+  { p: "/audit", l: "Log attività", i: "history", admin: true },
   { p: "/impostazioni", l: "Impostazioni & Import", i: "layers", admin: true },
 ];
 
@@ -75,9 +89,11 @@ function view(route) {
     case "registro-controlli": return html`<${RegistroControlli} />`;
     case "registro-nc": return html`<${RegistroNC} />`;
     case "scadenziario": return html`<${Scadenziario} />`;
-    case "archivio": return html`<${Archivio} />`;
-    case "ddt": return html`<${DDT} />`;
-    case "commesse": return html`<${Commesse} />`;
+    case "ricerca": return html`<${Ricerca} />`;
+    case "registro-audit": return html`<${RegistroAudit} />`;
+    case "audit-cliente": return b ? html`<${AuditClienteForm} id=${b} key=${b} />` : admin ? html`<${AuditClienteForm} key=${"new" + (location.hash.split("?")[1] || "")} />` : null;
+    case "report-nc": return html`<${ReportNC} />`;
+    case "anagrafica": return html`<${Anagrafica} />`;
     case "audit": return admin ? html`<${AuditLog} />` : null;
     case "console": return admin ? html`<${Console} />` : null;
     case "segnalazioni": return admin ? html`<${Segnalazioni} />` : null;
@@ -150,8 +166,24 @@ function GlobalSearch() {
     const k = (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); ref.current && ref.current.focus(); } };
     addEventListener("keydown", k); return () => removeEventListener("keydown", k);
   }, []);
-  return html`<form class="gsearch" onSubmit=${(e) => { e.preventDefault(); sessionStorage.setItem("qc-q", q); go("/archivio?" + Date.now()); }}>
+  return html`<form class="gsearch" onSubmit=${(e) => { e.preventDefault(); sessionStorage.setItem("qc-q", q); go("/ricerca?" + Date.now()); }}>
     <${Icon} n="search" /><input ref=${ref} placeholder="Ricerca globale…" value=${q} onInput=${(e) => setQ(e.target.value)} /><kbd>⌘K</kbd></form>`;
+}
+
+function ThemePicker({ theme, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const f = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    addEventListener("pointerdown", f); return () => removeEventListener("pointerdown", f);
+  }, [open]);
+  return html`<div class="theme-pick" ref=${ref}>
+    <button class="btn ghost icon" title="Colori del tema" aria-label="Cambia tema" onClick=${() => setOpen(!open)}><${Icon} n="palette" /></button>
+    ${open && html`<div class="theme-menu" role="menu"><div class="lbl">Tema</div>
+      ${TEMI.map((t) => html`<button key=${t.v} class=${"theme-it" + (theme === t.v ? " on" : "")} onClick=${() => { onChange(t.v); setOpen(false); }}>
+        <span class="sw" style=${`background:linear-gradient(135deg, ${t.sw[0]} 50%, ${t.sw[1]} 50%)`}></span>${t.l}${theme === t.v && html`<${Icon} n="check" s=${14} />`}</button>`)}</div>`}
+  </div>`;
 }
 
 function Shell({ route }) {
@@ -170,7 +202,10 @@ function Shell({ route }) {
     });
   }, []);
   useEffect(() => setMobile(false), [route]);
-  const base = "/" + (route.split("/")[1] || "").split("?")[0];
+  const base0 = "/" + (route.split("/")[1] || "").split("?")[0];
+  // le schede aperte evidenziano il loro registro (es. una NC aperta → Registro NC)
+  const detail = route.split("?")[0].split("/")[2];
+  const base = detail ? ({ "/nc": "/registro-nc", "/controllo": "/registro-controlli", "/audit-cliente": "/registro-audit", "/rientro": "/registro-rientri" }[base0] || base0) : base0;
   const logout = async () => { await doLogout("logout"); };
   const v = view(route.split("?")[0]);
   return html`<div class=${"shell" + (collapsed ? " collapsed" : "") + (mobile ? " mob-open" : "")}>
@@ -188,7 +223,7 @@ function Shell({ route }) {
         <${GlobalSearch} />
         <div class="top-r">
           <${Clock} />
-          <button class="btn ghost icon" title="Cambia tema" onClick=${() => { const t = theme === "dark" ? "light" : "dark"; setTheme(t); applyTheme(t); }}><${Icon} n=${theme === "dark" ? "sun" : "moon"} /></button>
+          <${ThemePicker} theme=${theme} onChange=${(t) => { setTheme(t); applyTheme(t); }} />
           ${admin && html`<a class="btn ghost icon bell" href="#/segnalazioni" title="Segnalazioni"><${Icon} n="bell" />${nuove > 0 && html`<em>${nuove}</em>`}</a>`}
           <span class=${"role " + (admin ? "r-admin" : "r-guest")}><${Icon} n=${admin ? "shield" : "eye"} s=${12} />${admin ? "ADMIN" : "OSPITE"}</span>
           <button class="btn ghost icon" title="Esci" onClick=${logout}><${Icon} n="logout" /></button>

@@ -1,53 +1,52 @@
-import { html, useState, Icon, Badge, PageHeader, Card, Spinner, Empty, fmtDate, isoDay, pad } from "../ui.js";
-import { useCollections, statoScadenza } from "./common.js";
+import { html, useState, Icon, PageHeader, Card, Spinner, Empty, fmtDate, isoDay } from "../ui.js";
+import { isAdmin } from "../store.js";
+import { useCollections } from "./common.js";
 import { APP } from "../config.js";
+import { Calendario, VoceRow, EventoModal, vociCalendario, nuovoEvento } from "./calendario.js";
 
-const MESI = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"];
+const FILTRI = [["", "Tutto"], ["nc", "Scadenze NC"], ["audit", "Audit"], ["scadenza", "Scadenze"], ["evento", "Eventi"]];
 
 export function Scadenziario() {
-  const [d, reload] = useCollections(["nc"]);
-  const [mese, setMese] = useState(() => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), 1); });
+  const [d, reload] = useCollections(["nc", "audit_clienti", "eventi"]);
   const [filtro, setFiltro] = useState("");
   const [giorno, setGiorno] = useState("");
+  const [ev, setEv] = useState(null);
+  const admin = isAdmin();
   if (!d) return html`<${Spinner} />`;
-  const items = d.nc.map((n) => ({ n, s: statoScadenza(n) })).filter((x) => x.s).sort((a, b) => a.s.giorni - b.s.giorni);
-  const cnt = (st) => items.filter((x) => x.s.status === st).length;
-  const shown = items.filter((x) => (!filtro || x.s.status === filtro) && (!giorno || x.s.data === giorno));
-
-  const y = mese.getFullYear(), m = mese.getMonth();
-  const start = new Date(y, m, 1 - ((new Date(y, m, 1).getDay() + 6) % 7));
-  const days = Array.from({ length: 42 }, (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
+  const voci = vociCalendario(d);
+  const match = (v) => !filtro || v.kind === filtro || (filtro === "audit" && v.kind === "audit_prev");
+  const vis = voci.filter(match);
   const today = isoDay();
-  const byDay = {};
-  items.forEach((x) => { (byDay[x.s.data] = byDay[x.s.data] || []).push(x); });
+  const ncV = voci.filter((v) => v.kind === "nc");
+  const scadute = ncV.filter((v) => v.status === "scaduta").length, inScad = ncV.filter((v) => v.status === "in_scadenza").length;
+  const prossimi = voci.filter((v) => v.kind !== "nc" && (v.end || v.start) >= today && !v.done);
+  const shown = giorno ? vis.filter((v) => v.start <= giorno && (v.end || v.start) >= giorno)
+    : vis.filter((v) => (v.kind === "nc") || ((v.end || v.start) >= today && !v.done));
 
-  const kpi = (st, label, cls) => html`<button class=${"kpi kpi-btn " + cls + (filtro === st ? " sel" : "")} onClick=${() => setFiltro(filtro === st ? "" : st)}>
-    <div><span class="lbl">${label}</span><b>${cnt(st)}</b></div></button>`;
+  const kpi = (k, label, val, cls, sub) => html`<button class=${"kpi kpi-btn " + cls + (filtro === k ? " sel" : "")} onClick=${() => { setFiltro(filtro === k ? "" : k); setGiorno(""); }}>
+    <div><span class="lbl">${label}</span><b>${val}</b>${sub && html`<small>${sub}</small>`}</div></button>`;
   return html`<div>
-    <${PageHeader} title="Scadenziario" subtitle=${`Scadenze NC · avviso a ${APP.avvisoGiorni} giorni · SLA ${APP.slaGiorni} gg dall'apertura`}>
+    <${PageHeader} title="Calendario & Scadenze" subtitle=${`Scadenze NC (avviso a ${APP.avvisoGiorni} gg, SLA ${APP.slaGiorni} gg), audit dei clienti, eventi e scadenze`}>
       <button class="btn outline" onClick=${reload}><${Icon} n="refresh" /> Aggiorna</button>
+      ${admin && html`<button class="btn primary" onClick=${() => setEv(nuovoEvento(giorno))}><${Icon} n="plus" /> Nuovo evento</button>`}
     </${PageHeader}>
-    <div class="kpis three">${kpi("scaduta", "Scadute", "k-red")}${kpi("in_scadenza", "In scadenza", "k-amber")}${kpi("in_corso", "In corso", "k-blue")}</div>
-    ${cnt("scaduta") > 0 && html`<div class="alert-bar static"><${Icon} n="alert" /><span><b>Richiesta di revisione</b> — ${cnt("scaduta")} non conformità hanno superato la data di scadenza e richiedono revisione immediata.</span></div>`}
+    <div class="kpis">
+      ${kpi("nc", "NC scadute / in scadenza", `${scadute} / ${inScad}`, "k-red", `${ncV.length} NC aperte con scadenza`)}
+      ${kpi("audit", "Audit in arrivo", prossimi.filter((v) => v.kind === "audit" || v.kind === "audit_prev").length, "k-teal", "da oggi in poi")}
+      ${kpi("scadenza", "Scadenze", prossimi.filter((v) => v.kind === "scadenza").length, "k-amber", "da fare")}
+      ${kpi("evento", "Eventi", prossimi.filter((v) => v.kind === "evento").length, "k-violet", "in programma")}
+    </div>
+    ${scadute > 0 && html`<div class="alert-bar static"><${Icon} n="alert" /><span><b>Richiesta di revisione</b> — ${scadute} non conformità hanno superato la data di scadenza.</span></div>`}
     <div class="grid-2">
-      <${Card} title="Calendario scadenze" right=${html`<div class="row-gap"><button class="btn ghost icon sm" onClick=${() => setMese(new Date(y, m - 1, 1))}><${Icon} n="left" /></button>
-        <b class="cal-m">${MESI[m]} ${y}</b><button class="btn ghost icon sm" onClick=${() => setMese(new Date(y, m + 1, 1))}><${Icon} n="right" /></button></div>`}>
-        <div class="cal">${["lun", "mar", "mer", "gio", "ven", "sab", "dom"].map((g) => html`<span class="cal-h">${g}</span>`)}
-          ${days.map((dd) => { const k = `${dd.getFullYear()}-${pad(dd.getMonth() + 1)}-${pad(dd.getDate())}`; const ev = byDay[k] || [];
-            const st = ev.some((x) => x.s.status === "scaduta") ? "scaduta" : ev.some((x) => x.s.status === "in_scadenza") ? "in_scadenza" : ev.length ? "in_corso" : "";
-            return html`<button class=${"cal-d" + (dd.getMonth() !== m ? " out" : "") + (k === today ? " today" : "") + (giorno === k ? " sel" : "") + (st ? " ev-" + st : "")}
-              onClick=${() => setGiorno(giorno === k ? "" : k)} title=${ev.map((x) => x.n.numero_report).join(", ")}>${dd.getDate()}${ev.length > 0 && html`<i>${ev.length}</i>`}</button>`; })}
-        </div>
-        <div class="legend"><i class="lg-red"></i>Scaduta <i class="lg-amber"></i>In scadenza <i class="lg-blue"></i>In corso</div>
-      </${Card}>
-      <${Card} title="Tutte le NC aperte" right=${html`<span class="muted small">${shown.length} voci${giorno ? " · " + fmtDate(giorno) : ""}${filtro || giorno ? html` · <button class="link-btn" onClick=${() => { setFiltro(""); setGiorno(""); }}>azzera</button>` : ""}</span>`}>
-        ${shown.length === 0 ? html`<${Empty} text="Nessuna NC aperta con scadenza." icon="checkCircle" />` : html`<div class="mini-list">
-          ${shown.map(({ n, s }) => html`<a class="mini" href=${"#/nc/" + n.id}>
-            <div><b>${n.numero_report}</b><small>${n.materiale_descrizione || "—"} · ${n.controparte || ""}</small></div>
-            <div class="r"><span class="mono small">${fmtDate(s.data)}${s.esplicita ? "" : " (SLA)"}</span><small class=${s.giorni < 0 ? "t-red" : s.giorni <= APP.avvisoGiorni ? "t-amber" : "muted"}>
-              ${s.giorni < 0 ? Math.abs(s.giorni) + " gg fa" : s.giorni === 0 ? "oggi" : "tra " + s.giorni + " gg"}</small></div>
-            <${Badge} v=${s.status} /></a>`)}</div>`}
+      <${Card} title="Calendario"><${Calendario} voci=${vis} giorno=${giorno} onGiorno=${setGiorno} /></${Card}>
+      <${Card} title=${giorno ? "Giorno " + fmtDate(giorno) : "Scadenze e prossimi impegni"} right=${html`<span class="muted small">${shown.length} voci
+        ${(filtro || giorno) ? html` · <button class="link-btn" onClick=${() => { setFiltro(""); setGiorno(""); }}>azzera</button>` : ""}
+        ${admin && giorno ? html` · <button class="link-btn" onClick=${() => setEv(nuovoEvento(giorno))}>+ evento in questo giorno</button>` : ""}</span>`}>
+        <div class="tabs sm">${FILTRI.map(([k, l]) => html`<button class=${"tab" + (filtro === k ? " on" : "")} onClick=${() => setFiltro(k)}>${l}</button>`)}</div>
+        ${shown.length === 0 ? html`<${Empty} text=${giorno ? "Niente in questo giorno." : "Nessuna scadenza o impegno in programma."} icon="checkCircle" />`
+          : html`<div class="mini-list">${shown.map((v) => html`<${VoceRow} key=${v.id} v=${v} onEdit=${setEv} />`)}</div>`}
       </${Card}>
     </div>
+    ${ev && html`<${EventoModal} ev=${ev} onClose=${() => setEv(null)} />`}
   </div>`;
 }

@@ -58,7 +58,7 @@ export async function remove(col, id, label) {
   // elimina anche gli allegati collegati
   try {
     const s = await getDocs(query(collection(db, "allegati"), where("parent_id", "==", id)));
-    await Promise.all(s.docs.map((d) => deleteDoc(d.ref)));
+    await Promise.all(s.docs.map(async (d) => { await delParti(d.id, d.data().parts); await deleteDoc(d.ref); }));
   } catch (e) { /* ok */ }
   emit(col);
   audit("delete", col, id, label);
@@ -140,16 +140,32 @@ export const setSegnalazione = (id, data) => updateDoc(doc(db, "segnalazioni", i
 export const delSegnalazione = (id) => deleteDoc(doc(db, "segnalazioni", id));
 
 // ---------- Allegati (salvati in Firestore, niente Storage = niente piano a pagamento) ----------
+// I file grandi (es. report PDF degli audit) vengono spezzati in "parti" da ~900 KB
+// nella collezione allegati_parti e ricomposti all'apertura.
+const CHUNK = 900000;
 export async function listAllegati(parent_id) {
   const s = await getDocs(query(collection(db, "allegati"), where("parent_id", "==", parent_id)));
   return s.docs.map((d) => ({ ...d.data(), id: d.id })).sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""));
 }
 export async function addAllegato(parent_type, parent_id, file) {
-  const ref = await addDoc(collection(db, "allegati"), { parent_type, parent_id, ...file, created_at: stamp(), created_by: session.user.email });
+  const extra = [];
+  let data = file.data;
+  if (data.length > CHUNK) { for (let i = CHUNK; i < data.length; i += CHUNK) extra.push(data.slice(i, i + CHUNK)); data = data.slice(0, CHUNK); }
+  const ref = await addDoc(collection(db, "allegati"), { parent_type, parent_id, ...file, data, parts: extra.length, created_at: stamp(), created_by: session.user.email });
+  for (let i = 0; i < extra.length; i++) await setDoc(doc(db, "allegati_parti", `${ref.id}_${i + 1}`), { att_id: ref.id, idx: i + 1, data: extra[i] });
   audit("allegato", parent_type, parent_id, file.name);
   return ref.id;
 }
-export const delAllegato = (id) => deleteDoc(doc(db, "allegati", id));
+// Contenuto completo (ricompone le parti se il file era grande)
+export async function allegatoData(a) {
+  if (!a.parts || !a.id) return a.data;
+  const ps = await Promise.all(Array.from({ length: a.parts }, (_, i) => getDoc(doc(db, "allegati_parti", `${a.id}_${i + 1}`))));
+  return a.data + ps.map((p) => (p.exists() ? p.data().data : "")).join("");
+}
+async function delParti(id, parts) {
+  for (let i = 1; i <= (parts || 0); i++) await deleteDoc(doc(db, "allegati_parti", `${id}_${i}`)).catch(() => {});
+}
+export async function delAllegato(id, parts) { await delParti(id, parts); await deleteDoc(doc(db, "allegati", id)); }
 
 // ---------- Import massivo ----------
 export async function importBatch(col, rows, onProgress) {

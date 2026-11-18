@@ -3,7 +3,7 @@ import { importBatch, wipeCollection, list, audit, session } from "../store.js";
 import { auth } from "../fb.js";
 import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "../../vendor/firebase.js";
 
-const COLS = [["controlli", "Controlli accettazione"], ["nc", "Non conformità"], ["ddt", "Certificati & DDT"], ["commesse", "Commesse"],
+const COLS = [["controlli", "Controlli accettazione"], ["nc", "Non conformità"], ["audit_clienti", "Audit clienti"], ["eventi", "Eventi calendario"], ["soggetti", "Anagrafica fornitori/clienti"],
   ["rientri", "Rientri trasformatori"], ["operatori", "Operatori"], ["assegnazioni", "Assegnazioni strumenti"], ["catalogo_strumenti", "Elenco strumenti"], ["resistenze", "Resistenze fuori cassa"]];
 
 export function Impostazioni() {
@@ -17,7 +17,7 @@ export function Impostazioni() {
     const f = e.target.files[0]; e.target.value = ""; if (!f) return;
     try {
       const j = JSON.parse(await f.text());
-      if (!j.controlli && !j.nc && !j.rientri && !j.operatori && !j.resistenze) throw new Error("File non riconosciuto");
+      if (!j.controlli && !j.nc && !j.rientri && !j.operatori && !j.resistenze && !j.audit_clienti) throw new Error("File non riconosciuto");
       setSeed(j); toast.ok("File letto: controlla i numeri e premi Importa");
     } catch (err) { toast.err("File non valido: " + err.message); }
   };
@@ -61,7 +61,7 @@ export function Impostazioni() {
     <${PageHeader} title="Impostazioni & Import" subtitle="Caricamento dati, backup e sicurezza" />
     <div class="grid-2">
       <${Card} title="1 · Importa dati (prima volta)">
-        <p class="muted small">Carica il file <b>seed-data.json</b> (controlli, NC, DDT e commesse del vecchio sito). Puoi ripetere l'import: i record con lo stesso ID vengono aggiornati, non duplicati.</p>
+        <p class="muted small">Carica il file <b>seed-data.json</b> (controlli e NC del vecchio sito). Puoi ripetere l'import: i record con lo stesso ID vengono aggiornati, non duplicati.</p>
         <label class="btn outline"><${Icon} n="upload" /> Scegli file JSON<input type="file" accept=".json,application/json" hidden onChange=${onFile} /></label>
         ${seed && html`<div class="import-box">
           ${COLS.map(([k, l]) => html`<label class="chk"><input type="checkbox" checked=${sel[k]} onChange=${(e) => setSel({ ...sel, [k]: e.target.checked })} /> ${l}: <b>${(seed[k] || []).length}</b></label>`)}
@@ -71,7 +71,7 @@ export function Impostazioni() {
         ${prog && html`<p class="mono small">${prog}</p>`}
       </${Card}>
       <${Card} title="2 · Backup">
-        <p class="muted small">Scarica una copia completa (JSON) di controlli, NC, DDT, commesse, rientri, assegnazioni strumenti e resistenze fuori cassa. Lo stesso file si può reimportare qui sopra. Consiglio: una volta al mese.</p>
+        <p class="muted small">Scarica una copia completa (JSON) di controlli, NC, audit clienti, eventi, anagrafica, rientri, assegnazioni strumenti e resistenze fuori cassa. Lo stesso file si può reimportare qui sopra. Consiglio: una volta al mese.</p>
         <button class="btn outline" disabled=${busy} onClick=${backup}><${Icon} n="download" /> Scarica backup</button>
       </${Card}>
       <${Card} title="3 · Cambia la tua password">

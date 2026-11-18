@@ -27,7 +27,8 @@ export const APP = {
   sotto: "QUALITY CONTROL",
   slaGiorni: 30,          // scadenza NC: 30 giorni dall'apertura (se non c'è una data scadenza esplicita)
   avvisoGiorni: 7,        // "in scadenza" quando mancano ≤ 7 giorni
-  maxAllegatoKB: 700,     // dimensione massima di un file allegato (dopo compressione immagini)
+  maxAllegatoKB: 700,     // dimensione massima di una foto (dopo compressione automatica)
+  maxFileMB: 8,           // dimensione massima di PDF/documenti (es. report audit): vengono spezzati in parti
   // Base URL dei vecchi file su Altervista (allegati legacy). Lascia "" se non più disponibili.
   legacyFilesBase: "",
 };
@@ -60,3 +61,23 @@ export const PROVE_RIENTRO = [
   ["resistenza", "Misura resistenza avvolgimenti"], ["rigidita_olio", "Rigidità dielettrica su campione olio"], ["altro", "Altro"],
 ];
 export const LAVORI_RIENTRO = [["manutenzione", "Manutenzione"], ["riparazione", "Riparazione"], ["rottamazione", "Rottamazione"]];
+
+// ---------- Livello di criticità NC (per i report di fine anno) ----------
+// 5 livelli: dal difetto puramente estetico fino al rischio per sicurezza/funzionamento.
+export const CRITICITA = [
+  { v: "1", l: "1 · Trascurabile", s: "Trascurabile", c: "zinc", d: "Difetto estetico o formale, nessun effetto su funzionalità, sicurezza o consegna." },
+  { v: "2", l: "2 · Lieve", s: "Lieve", c: "blue", d: "Difetto minore risolto subito in casa (piccolo ritocco), senza ritardi né costi rilevanti." },
+  { v: "3", l: "3 · Moderata", s: "Moderata", c: "amber", d: "Serve rilavorazione o sostituzione del materiale; possibile ritardo interno, il cliente non è toccato." },
+  { v: "4", l: "4 · Grave", s: "Grave", c: "orange", d: "Incide su prestazioni, collaudo o consegna; coinvolge il cliente o genera un reclamo." },
+  { v: "5", l: "5 · Critica", s: "Critica", c: "red", d: "Rischio per sicurezza o funzionamento del trasformatore: fermo, richiamo o blocco del lotto." },
+];
+export const critOf = (v) => CRITICITA.find((x) => x.v === String(v || ""));
+
+// ---------- Audit dei clienti (verifiche e test presso di noi) ----------
+export const ESITI_AUDIT = [
+  { v: "positivo", l: "Positivo", c: "green" },
+  { v: "parziale_positivo", l: "Parzialmente positivo", c: "teal" },
+  { v: "parziale_negativo", l: "Parzialmente negativo", c: "amber" },
+  { v: "negativo", l: "Negativo", c: "red" },
+];
+export const TIPI_AUDIT = ["Audit di sistema (qualità)", "Audit di processo", "Collaudo / FAT presso di noi", "Test di tipo", "Ispezione su fornitura", "Audit di seconda parte", "Altro"];

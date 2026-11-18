@@ -1,7 +1,8 @@
 import { fmtDate, fmtDT, fmtNum, calcEsito } from "./ui.js";
 import { listAllegati, audit } from "./store.js";
+import { trimSignature } from "./widgets.js";
 import { logoServiceDataUrl, aziendaOf, aziendaLabel } from "./azienda.js";
-import { ACCESSORI_RIENTRO, PROVE_RIENTRO, LAVORI_RIENTRO, GARANZIA } from "./config.js";
+import { critOf, ACCESSORI_RIENTRO, PROVE_RIENTRO, LAVORI_RIENTRO, GARANZIA } from "./config.js";
 import { faseRientro, koRientro } from "./views/common.js";
 
 let lib = null;
@@ -54,11 +55,21 @@ function ensure(doc, y, need) {
   if (y + need > doc.internal.pageSize.getHeight() - 16) { doc.addPage(); return 18; }
   return y;
 }
-function firma(doc, y, label, f, x = 14) {
+// Riquadro firma 58×24 mm: la firma viene ritagliata e inserita SENZA deformarla (proporzioni originali, centrata)
+async function firma(doc, y, label, f, x = 14) {
+  const BW = 58, BH = 24;
   doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.text(label, x, y);
   doc.setFont("helvetica", "normal");
-  doc.setDrawColor(200); doc.rect(x, y + 2, 58, 24);
-  if (f && f.signature_data) { try { doc.addImage(f.signature_data, "PNG", x + 1, y + 3, 56, 22); } catch (e) { } }
+  doc.setDrawColor(200); doc.rect(x, y + 2, BW, BH);
+  if (f && f.signature_data) {
+    try {
+      const t = (await trimSignature(f.signature_data)) || { data: f.signature_data, ...doc.getImageProperties(f.signature_data) };
+      const iw = t.w || t.width, ih = t.h || t.height;
+      const k = Math.min((BW - 3) / iw, (BH - 3) / ih);
+      const w = iw * k, h = ih * k;
+      doc.addImage(t.data, "PNG", x + (BW - w) / 2, y + 2 + (BH - h) / 2, w, h, undefined, "FAST");
+    } catch (e) { }
+  }
   doc.setFontSize(7); doc.setTextColor(100);
   doc.text(f ? `${f.firmatario || ""} ${f.data ? "· " + fmtDT(f.data) : ""}` : "Non firmato", x, y + 30);
   doc.setTextColor(0);
@@ -103,7 +114,7 @@ export async function pdfControllo(c) {
   if (v) y = kv(doc, y, Object.entries(v).map(([k, val]) => ["Vernice " + k.replace(/_/g, " "), val]), L);
   y = kv(doc, y, [["CONFORMITÀ GENERALE", (c.conformita_generale || "—").replace("_", " ").toUpperCase()]], L);
   y = block(doc, y, "Note", c.note, L);
-  y = ensure(doc, y, 36); firma(doc, y, "Firma compilatore", c.firma); y += 36;
+  y = ensure(doc, y, 36); await firma(doc, y, "Firma compilatore", c.firma); y += 36;
   await photos(doc, y, c.id);
   footer(doc, `Controllo ${c.id || ""}`);
   audit("pdf_download", "controlli", c.id, `${c.tipo} ${c.fornitore}`);
@@ -117,6 +128,7 @@ export async function pdfNC(n) {
   let y = header(doc, "RAPPORTO DI NON CONFORMITÀ", `N° ${n.numero_report || "—"} · ${(n.stato || "").toUpperCase()}`, await logoFor(n));
   y = kv(doc, y, [["Azienda", aziendaLabel(aziendaOf(n))], ["Numero report", n.numero_report], ["Data", fmtDate(n.data)], ["Documento rif.", n.documento_riferimento],
     ["Origine NC", n.origine_nc], ["Controparte", n.controparte], ["Classificazione", n.classificazione],
+    ["Livello criticità", (critOf(n.criticita) || {}).l],
     ["Quantità", (n.quantita || "") + (n.quantita_definitiva ? " (definitiva)" : "")], ["Responsabile", n.responsabile_rilevazione]], L);
   y = block(doc, y, "Materiale", n.materiale_descrizione, L);
   y = block(doc, y, "Descrizione della non conformità", n.descrizione_nc, L);
@@ -133,9 +145,9 @@ export async function pdfNC(n) {
     y = doc.lastAutoTable.finalY + 5;
   }
   y = ensure(doc, y, 36);
-  firma(doc, y, "Firma rilevazione", n.firma_rilevazione, 14);
-  firma(doc, y, "Firma trattamento", n.firma_trattamento, 76);
-  firma(doc, y, "Firma efficacia", n.firma_efficacia, 138);
+  await firma(doc, y, "Firma rilevazione", n.firma_rilevazione, 14);
+  await firma(doc, y, "Firma trattamento", n.firma_trattamento, 76);
+  await firma(doc, y, "Firma efficacia", n.firma_efficacia, 138);
   y += 38;
   await photos(doc, y, n.id);
   footer(doc, `NC ${aziendaOf(n) === "service" ? "Mace Service " : ""}${n.numero_report || ""}`);
@@ -170,11 +182,11 @@ function checkTbl(doc, y, L, head, voci, group, altro, [a, b], compact) {
 }
 
 // "Eseguita da / data" a sinistra, riquadro firma a destra (stessa altezza)
-function accFirma(doc, y, L, l1, v1, l2, v2, lf, f) {
+async function accFirma(doc, y, L, l1, v1, l2, v2, lf, f) {
   y = ensure(doc, y, 36);
   L.autoTable(doc, { startY: y + 3, theme: "grid", tableWidth: 116, margin: { left: 14 }, styles: { fontSize: 8.5, cellPadding: 2.4 },
     columnStyles: { 0: { fontStyle: "bold", fillColor: [244, 244, 245], cellWidth: 46 } }, body: [[l1, v1 || "—"], [l2, fmtDate(v2)]] });
-  firma(doc, y, lf, f, 138);
+  await firma(doc, y, lf, f, 138);
   return Math.max(doc.lastAutoTable.finalY, y + 32) + 6;
 }
 
@@ -201,7 +213,7 @@ export async function pdfRientro(r) {
     ["Potenza nominale", r.potenza ? r.potenza + " kVA" : ""], ["Anno", r.anno], ["Rapporto di trasf.", r.rapporto], ["Gruppo", r.gruppo],
     ["Peso totale", r.peso_totale ? r.peso_totale + " kg" : ""], ["Peso olio", r.peso_olio ? r.peso_olio + " kg" : ""]], L, 1.3);
   y = checkTbl(doc, ensure(doc, y, 60), L, "Dotazione riscontrata in accettazione", ACCESSORI_RIENTRO, r.accessori, r.accessori_altro, ["si", "no"], true);
-  y = accFirma(doc, y, L, "Accettazione eseguita da", r.accettato_da, "Data accettazione", r.data_accettazione, "Firma accettazione", r.firma_accettazione);
+  y = await accFirma(doc, y, L, "Accettazione eseguita da", r.accettato_da, "Data accettazione", r.data_accettazione, "Firma accettazione", r.firma_accettazione);
 
   doc.addPage(); y = header(doc, "SCHEDA DI PRESA IN CARICO", `Rientro N° ${r.numero || "—"} · Mod. MAC PA4190/1`, await logoFor(r));
   y = bar(doc, y, "PARTE 2 — COLLAUDO ELETTRICO IN ACCETTAZIONE E ISPEZIONE PARTE ATTIVA", faseLabel(fase));
@@ -213,7 +225,7 @@ export async function pdfRientro(r) {
   L.autoTable(doc, { startY: ensure(doc, y, 24), theme: "grid", styles: { fontSize: 8.5, cellPadding: 2.2 }, head: [["Lavori da preventivare e osservazioni"]],
     headStyles: { fillColor: DARK, fontSize: 8.5 }, body: [[{ content: lav, styles: { fontStyle: "bold" } }], ["Attività da prevedere: " + (r.attivita_prevedere || "—")]] });
   y = doc.lastAutoTable.finalY + 5;
-  y = accFirma(doc, y, L, "Verifica eseguita da", r.verificato_da, "Data verifica", r.data_verifica, "Firma verifica", r.firma_verifica);
+  y = await accFirma(doc, y, L, "Verifica eseguita da", r.verificato_da, "Data verifica", r.data_verifica, "Firma verifica", r.firma_verifica);
   if ((r.storico || []).length) {
     L.autoTable(doc, { startY: ensure(doc, y, 20), theme: "striped", styles: { fontSize: 8 }, headStyles: { fillColor: DARK },
       head: [["Data", "Aggiornamento", "Stato", "Autore"]], body: r.storico.map((s) => [fmtDate(s.data), s.note || "—", s.stato || "", s.autore || ""]) });
@@ -322,7 +334,7 @@ export async function pdfResistenze(r) {
       ["Radiale BT", mm(dm.bt_radiale)], ["Radiale AT esterno", mm(dm.at_radiale)], ["Diametro esterno AT", mm(dm.at_diam_est)],
       ["Conduttore larg. × spess.", dm.cond_larghezza || dm.cond_spessore ? `${dm.cond_larghezza || "—"} × ${dm.cond_spessore || "—"} mm` : ""]], L);
   }
-  y = ensure(doc, y, 31); firma(doc, y, "Firma operatore", r.firma); y += 36;
+  y = ensure(doc, y, 31); await firma(doc, y, "Firma operatore", r.firma); y += 36;
   await photos(doc, y, r.id);
   footer(doc, `Resistenze fuori cassa · ${r.codice_progetto || ""}${r.matricola ? " · matr. " + r.matricola : ""}`);
   audit("pdf_download", "resistenze", r.id, r.codice_progetto);
@@ -346,3 +358,45 @@ export async function pdfRegistroResistenze(rows, filtri) {
   audit("pdf_download", "resistenze", "", "registro resistenze PDF");
   save(doc, `Registro_Resistenze_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
+
+// ================= REPORT ANNUALE QUALITÀ =================
+const CRIT_RGB = { zinc: [113, 113, 122], blue: [2, 132, 199], amber: [217, 119, 6], orange: [234, 88, 12], red: [220, 38, 38] };
+export async function pdfReportAnnuale(R, anno, azL) {
+  const L = await load(); const doc = new L.jsPDF({ unit: "mm", format: "a4" });
+  let y = header(doc, `REPORT QUALITÀ ${anno}`, azL);
+  y = kv(doc, y, [["NC dell'anno", String(R.N.length)], ["Aperte / chiuse", `${R.aperte} / ${R.chiuse.length}`],
+    ["NC gravi o critiche (liv. 4-5)", String(R.gravi)], ["Tempo medio di chiusura", R.tMedio === null ? "—" : R.tMedio + " giorni"],
+    ["Controlli accettazione", `${R.C.length} (${R.ctrlNC} non conformi)`], ["Audit clienti", `${R.A.length}`]], L);
+  L.autoTable(doc, { startY: y, theme: "striped", styles: { fontSize: 8.5 }, headStyles: { fillColor: RED },
+    head: [["Livello di criticità", "Totale", "Aperte", "Chiuse", "%"]],
+    body: R.perCrit.map((c) => [c.l, c.tot, c.aperte, c.chiuse, R.N.length ? Math.round((c.tot / R.N.length) * 100) + "%" : "0%"]),
+    didParseCell: (d) => { if (d.section === "body" && d.column.index === 0) { const c = R.perCrit[d.row.index]; if (c && c.v) { d.cell.styles.textColor = CRIT_RGB[c.c]; d.cell.styles.fontStyle = "bold"; } } } });
+  y = doc.lastAutoTable.finalY + 6;
+  L.autoTable(doc, { startY: y, theme: "grid", styles: { fontSize: 7.8, halign: "center", cellPadding: 1.6 }, headStyles: { fillColor: [39, 39, 42] },
+    head: [["Mese", "NC", ...CRITICITA_PDF]], body: R.mesi.map((m) => [m.l, m.v || "", ...m.crit.map((x) => x || "")]), columnStyles: { 0: { halign: "left", fontStyle: "bold" } } });
+  y = doc.lastAutoTable.finalY + 6;
+  if (R.perOrig.length) {
+    L.autoTable(doc, { startY: ensure(doc, y, 30), theme: "striped", styles: { fontSize: 8.5 }, headStyles: { fillColor: [39, 39, 42] },
+      head: [["Origine NC", "Numero"]], body: R.perOrig.map((o) => [o.l, o.v]), tableWidth: 90 });
+    y = doc.lastAutoTable.finalY + 6;
+  }
+  L.autoTable(doc, { startY: ensure(doc, y, 30), theme: "striped", styles: { fontSize: 8 }, headStyles: { fillColor: RED },
+    head: [["Fornitore / controparte", "Controlli", "Non conformi", "NC", "Somma crit.", "Crit. max"]],
+    body: R.sogg.length ? R.sogg.map((s) => [s.nome, s.controlli || "", s.nonConf || "", s.nc || "", s.critSum || "", s.critMax || ""]) : [["Nessun dato", "", "", "", "", ""]],
+    columnStyles: { 0: { fontStyle: "bold" }, 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" }, 4: { halign: "right" }, 5: { halign: "center" } } });
+  y = doc.lastAutoTable.finalY + 6;
+  L.autoTable(doc, { startY: ensure(doc, y, 30), theme: "striped", styles: { fontSize: 8.5 }, headStyles: { fillColor: [39, 39, 42] },
+    head: [["Esito audit clienti", "Numero"]], body: R.esiti.map((e) => [e.l, e.v2]), tableWidth: 90 });
+  y = doc.lastAutoTable.finalY + 6;
+  if (R.A.length) {
+    L.autoTable(doc, { startY: ensure(doc, y, 30), theme: "striped", styles: { fontSize: 7.8 }, headStyles: { fillColor: [39, 39, 42] },
+      head: [["Data", "Azienda", "Cliente", "Cliente finale", "Tipo", "Esito"]],
+      body: [...R.A].sort((a, b) => (a.data_inizio || "").localeCompare(b.data_inizio || "")).map((a) => [fmtDate(a.data_inizio) + (a.data_fine && a.data_fine !== a.data_inizio ? " → " + fmtDate(a.data_fine) : ""),
+        aziendaOf(a) === "service" ? "SERVICE" : "POWER", a.cliente || "", a.cliente_finale || "", a.tipo || "", (ESITI_PDF[a.esito] || "")]) });
+  }
+  footer(doc, `Report qualità ${anno} · ${azL}`);
+  audit("pdf_download", "nc", "", "report annuale " + anno);
+  save(doc, `Report_Qualita_${anno}.pdf`);
+}
+const CRITICITA_PDF = ["1 Trasc.", "2 Lieve", "3 Mod.", "4 Grave", "5 Critica"];
+const ESITI_PDF = { positivo: "Positivo", parziale_positivo: "Parz. positivo", parziale_negativo: "Parz. negativo", negativo: "Negativo" };

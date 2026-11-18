@@ -4,7 +4,7 @@ import { PERCORSI } from "../config.js";
 import { SignaturePad, Allegati, flushPending } from "../widgets.js";
 import { GuestPanel } from "../guest.js";
 import { pdfControllo } from "../pdf.js";
-import { fornitori } from "./common.js";
+import { NomeInput, registraNomi, indiceNomi, canonico } from "../nomi.js";
 import { go } from "../ui.js";
 
 const vuota = () => ({ descrizione: "", valore_teorico: "", tolleranza: "", valore_misurato: "", unita: "mm", esito: "" });
@@ -34,13 +34,9 @@ export function ControlloForm({ id }) {
   const [c, setC] = useState(id ? null : nuovo());
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState([]);
-  const [forn, setForn] = useState([]);
-  const [commesse, setCommesse] = useState([]);
   const dirty = useRef(false);
 
   useEffect(() => {
-    list("controlli").then((r) => setForn(fornitori(r))).catch(() => {});
-    list("commesse").then(setCommesse).catch(() => {});
     if (!id) return;
     get("controlli", id).then((r) => {
       if (!r) { toast.err("Controllo non trovato"); return go("/registro-controlli"); }
@@ -67,15 +63,6 @@ export function ControlloForm({ id }) {
   const pass = quote.filter((q) => calcEsito(q) === "PASS").length;
   const tipi = [...PERCORSI[c.percorso], ...(c.tipo && !PERCORSI[c.percorso].includes(c.tipo) ? [c.tipo] : [])];
 
-  const autofill = () => {
-    const k = (c.codice_commessa || "").trim().toLowerCase();
-    if (!k) return toast.info("Scrivi prima il codice commessa");
-    const m = commesse.find((x) => (x.codice || "").toLowerCase() === k || (x.descrizione || "").toLowerCase().startsWith(k));
-    if (!m) return toast.err("Commessa non trovata in anagrafica");
-    if (!(m.quote_template || []).length) return toast.info(`Commessa ${m.codice}: nessun template quote`);
-    set("controlli_dimensionali", m.quote_template.map((t) => ({ ...vuota(), ...t, valore_misurato: "", esito: "" })));
-    toast.ok("Quote precompilate da commessa " + m.codice);
-  };
   const caricaModello = () => {
     const mod = MODELLI[c.tipo]; if (!mod) return toast.info("Nessun modello per questo tipo");
     const giaPiene = quote.some((q) => q.descrizione || q.valore_misurato);
@@ -85,7 +72,8 @@ export function ControlloForm({ id }) {
   };
 
   const salva = async (statoForzato) => {
-    const body = { ...c, stato: statoForzato || c.stato };
+    const idx = await indiceNomi().catch(() => new Map());
+    const body = { ...c, stato: statoForzato || c.stato, fornitore: canonico(idx, c.fornitore) };
     body.controlli_dimensionali = quote.filter((q) => String(q.valore_teorico || "").trim() || String(q.valore_misurato || "").trim()).map((q) => ({ ...q, esito: calcEsito(q) }));
     if (body.stato === "completato") {
       const miss = [!body.tipo && "Tipo controllo", !body.fornitore && "Fornitore", !body.data && "Data", !body.conformita_generale && "Conformità generale"].filter(Boolean);
@@ -96,6 +84,7 @@ export function ControlloForm({ id }) {
     setBusy(true);
     try {
       try { localStorage.setItem("qc-compilatore", body.compilatore || ""); } catch (e) { }
+      await registraNomi([[body.fornitore, "fornitore"]]);
       const label = `${body.tipo} ${body.fornitore}`;
       if (id) { await update("controlli", id, body, label); setC({ ...body, controlli_dimensionali: body.controlli_dimensionali.length ? body.controlli_dimensionali : [vuota()] }); toast.ok("Controllo aggiornato"); }
       else {
@@ -150,14 +139,10 @@ export function ControlloForm({ id }) {
     <${Card} title="Anagrafica">
       <div class="form-grid">
         <${Field} label="Compilatore"><input class="inp" value=${c.compilatore} disabled=${ro} onInput=${(e) => set("compilatore", e.target.value)} /></${Field}>
-        <${Field} label="Fornitore"><input class="inp" list="dl-forn" value=${c.fornitore} disabled=${ro} onInput=${(e) => set("fornitore", e.target.value)} />
-          <datalist id="dl-forn">${forn.map((f) => html`<option value=${f} />`)}</datalist></${Field}>
+        <${Field} label="Fornitore"><${NomeInput} tipo="fornitore" value=${c.fornitore} disabled=${ro} onChange=${(v) => set("fornitore", v)} /></${Field}>
         <${Field} label="Data"><input type="date" class="inp" value=${c.data} disabled=${ro} onInput=${(e) => set("data", e.target.value)} /></${Field}>
         <${Field} label="DDT"><input class="inp" value=${c.ddt} disabled=${ro} onInput=${(e) => set("ddt", e.target.value)} /></${Field}>
-        <${Field} label="Codice commessa"><div class="inp-btn"><input class="inp" placeholder="es. 25/00139" list="dl-comm" value=${c.codice_commessa} disabled=${ro}
-          onInput=${(e) => set("codice_commessa", e.target.value)} />
-          <datalist id="dl-comm">${commesse.map((m) => html`<option value=${m.codice}>${m.cliente}</option>`)}</datalist>
-          ${!ro && html`<button type="button" class="btn outline icon" title="Precompila quote da commessa" onClick=${autofill}><${Icon} n="wand" /></button>`}</div></${Field}>
+        <${Field} label="Codice commessa"><input class="inp" placeholder="es. 25/00139" value=${c.codice_commessa} disabled=${ro} onInput=${(e) => set("codice_commessa", e.target.value)} /></${Field}>
         <${Field} label="Codice progetto"><input class="inp" placeholder="es. TA10338" value=${c.codice_progetto} disabled=${ro} onInput=${(e) => set("codice_progetto", e.target.value)} /></${Field}>
       </div>
     </${Card}>

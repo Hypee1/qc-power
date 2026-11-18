@@ -56,6 +56,11 @@ const P = {
   users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
   undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5 5.5 5.5 0 0 1-5.5 5.5H11"/>',
   zap: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
+  award: '<circle cx="12" cy="8" r="6"/><path d="M15.48 12.89 17 22l-5-3-5 3 1.52-9.11"/>',
+  building: '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/>',
+  palette: '<circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.65-.75 1.65-1.69 0-.44-.18-.84-.44-1.13-.29-.29-.44-.65-.44-1.13a1.64 1.64 0 0 1 1.67-1.67h2c3.05 0 5.56-2.5 5.56-5.55C21.97 6.01 17.46 2 12 2z"/>',
+  chart: '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+  gauge: '<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>',
   layers: '<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
 };
 export function Icon({ n, s = 16, cls = "" }) {
@@ -73,6 +78,9 @@ const BADGE = {
   aperto: ["Aperto", "red"], chiuso: ["Chiuso", "green"], da_collaudare: ["Da collaudare", "amber"], collaudato: ["Collaudato", "green"], in_collaudo: ["Collaudo in corso", "blue"],
   g_si: ["In garanzia", "green"], g_no: ["Fuori garanzia", "zinc"], g_da_valutare: ["Garanzia da valutare", "amber"],
   in_uso: ["In uso", "amber"], restituito: ["Restituito", "green"], olio: ["Olio", "amber"], resina: ["Resina", "violet"],
+  c1: ["1 · Trascurabile", "zinc"], c2: ["2 · Lieve", "blue"], c3: ["3 · Moderata", "amber"], c4: ["4 · Grave", "orange"], c5: ["5 · Critica", "red"],
+  positivo: ["Positivo", "green"], parziale_positivo: ["Parz. positivo", "teal"], parziale_negativo: ["Parz. negativo", "amber"], negativo: ["Negativo", "red"],
+  evento: ["Evento", "violet"], scadenza: ["Scadenza", "amber"], audit_prev: ["Audit previsto", "teal"],
   sollecito: ["Sollecito", "red"], nota: ["Nota", "blue"], admin: ["Admin", "red"], ospite: ["Ospite", "blue"],
 };
 export function Badge({ v, label }) {
