@@ -15,6 +15,7 @@ export const FONTI = [
   ["nc", "controparte", "controparte"],
   ["audit_clienti", "cliente", "cliente"],
   ["audit_clienti", "cliente_finale", "cliente"],
+  ["richieste", "fornitore", "fornitore"],
 ];
 export const TIPI_SOGGETTO = [{ v: "fornitore", l: "Fornitore" }, { v: "cliente", l: "Cliente" }, { v: "controparte", l: "Fornitore / Cliente" }];
 

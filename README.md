@@ -16,12 +16,14 @@ Copia del gestionale qualità (controlli di accettazione, NC, scadenziario, DDT,
 ## Novità (novembre 2026): Audit clienti, criticità NC, anagrafica unica, 4 temi
 
 **⚠ Da fare una volta:** Firebase Console → Firestore → **Regole** → incolla di nuovo tutto `firestore.rules` → **Pubblica**.
-Servono per le nuove collezioni `audit_clienti`, `eventi`, `soggetti`, `allegati_parti`.
+Servono per le nuove collezioni `audit_clienti`, `eventi`, `soggetti`, `allegati_parti`, `near_miss`, `richieste`.
 
 - **Audit clienti** (`#/registro-audit`, `#/audit-cliente`): registro separato MACE POWER / MACE SERVICE. Per ogni audit: report PDF allegato (fino a 8 MB, salvato a pezzi), cliente del test, cliente finale, tipo, data inizio e fine, esito (positivo / parzialmente positivo / parzialmente negativo / negativo), n° rilievi, note. CSV del registro.
 - **Livello di criticità NC** (5 livelli): 1 Trascurabile · 2 Lieve · 3 Moderata · 4 Grave · 5 Critica. Si sceglie nel passo 1 della NC, compare nel registro (colonna + filtro), nel PDF e nel CSV.
 - **Report annuale** (`#/report-nc`): per anno e azienda — NC per criticità e per mese, tempo medio di chiusura, origine, fornitori/controparti con controlli e NC, esiti audit. Export **PDF** e **CSV**.
 - **Fornitori & Clienti** (`#/anagrafica`): anagrafica unica. «Tecnosteel», «TECNOSTEEL», «Tecnosteel S.r.l.» = stesso soggetto. Nei campi fornitore/controparte/cliente compaiono i suggerimenti e la grafia viene uniformata da sola. Pulsanti per uniformare le grafie già salvate e unire i doppioni scritti male.
+- **Near Miss** (`#/registro-near-miss`, `#/near-miss`): quasi incidenti, registro separato Power / Service. Reparto, ora, persone coinvolte, tipo di pericolo, descrizione, cosa poteva succedere, gravità possibile + probabilità (con criticità 1-5 suggerita), foto, causa, azioni immediate, azioni correttive con responsabile e scadenza (vanno nel calendario), chiusura, verifica efficacia, firme, PDF e CSV.
+- **Richieste effettuate** (`#/registro-richieste`, `#/richiesta`): richieste di acquisto (es. funi metalliche per sollevamento), DPI, ricambi, manutenzioni, tarature, servizi. Oggetto, quantità, priorità, «serve entro» (nel calendario), richiedente, fornitore, preventivi allegati, percorso di stato (inviata → in valutazione → approvata → ordinata → evasa, oppure rifiutata/annullata), storico aggiornamenti con data, esito con n° ordine e consegna, PDF e CSV.
 - **Calendario & Scadenze**: scadenze NC + audit + eventi/scadenze creati a mano, visibile anche nella **Dashboard**.
 - **Temi**: bianco, grigio chiaro, grigio scuro, nero (icona tavolozza in alto).
 - **Firme**: ritagliate e salvate senza deformazioni; nel PDF mantengono le proporzioni (anche quelle vecchie).

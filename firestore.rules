@@ -36,6 +36,12 @@ service cloud.firestore {
     match /eventi/{id}             { allow read: if member(); allow write: if isAdmin(); }
     match /soggetti/{id}           { allow read: if member(); allow write: if isAdmin(); }
 
+    // ---------- Near miss (quasi incidenti) ----------
+    match /near_miss/{id}          { allow read: if member(); allow write: if isAdmin(); }
+
+    // ---------- Richieste effettuate (acquisti, DPI, manutenzioni…) ----------
+    match /richieste/{id}          { allow read: if member(); allow write: if isAdmin(); }
+
     // ---------- Allegati (file in base64, max ~1 MB per documento) ----------
     match /allegati/{id} {
       allow read: if member();
@@ -56,7 +62,7 @@ service cloud.firestore {
       allow create: if isGuest()
         && d().keys().hasOnly(['tipo', 'entity', 'entity_id', 'entity_label', 'testo', 'autore', 'email', 'stato', 'ts', 'dispositivo'])
         && d().tipo in ['sollecito', 'nota']
-        && d().entity in ['controlli', 'nc', 'ddt', 'commesse', 'rientri', 'resistenze', 'audit_clienti']
+        && d().entity in ['controlli', 'nc', 'ddt', 'commesse', 'rientri', 'resistenze', 'audit_clienti', 'near_miss', 'richieste']
         && str(d().entity_id, 100) && str(d().entity_label, 200) && str(d().testo, 2000)
         && str(d().autore, 80) && str(d().dispositivo, 200)
         && d().email == email() && d().stato == 'nuova' && d().ts == request.time;

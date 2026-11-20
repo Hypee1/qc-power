@@ -8,7 +8,7 @@ import { CRIT_COL } from "./report-nc.js";
 const MESI = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
 
 export function Dashboard() {
-  const [d] = useCollections(["controlli", "nc", "audit_clienti", "eventi"]);
+  const [d] = useCollections(["controlli", "nc", "audit_clienti", "eventi", "near_miss", "richieste"]);
   const [giorno, setGiorno] = useState("");
   const [ev, setEv] = useState(null);
   if (!d) return html`<${Spinner} />`;
@@ -46,6 +46,7 @@ export function Dashboard() {
     <${PageHeader} title="Dashboard" subtitle="Panoramica qualità in tempo reale — solo dati effettivi">
       ${admin && html`<a class="btn outline" href="#/controllo"><${Icon} n="clipboard" /> Nuovo Controllo</a>
         <a class="btn outline" href="#/audit-cliente"><${Icon} n="award" /> Nuovo Audit</a>
+        <a class="btn outline" href="#/near-miss"><${Icon} n="hardhat" /> Near Miss</a>
         <a class="btn primary" href="#/nc"><${Icon} n="plus" /> Nuova NC</a>`}
     </${PageHeader}>
     ${scad.length > 0 && html`<a class="alert-bar" href="#/scadenziario"><${Icon} n="alert" />
@@ -54,6 +55,7 @@ export function Dashboard() {
       ${kpi("NC totali", N.length, `${aperte.length} aperte · ${chiuse.length} chiuse`, "alert", "k-red", "#/registro-nc")}
       ${kpi("NC aperte gravi / critiche", gravi.length, "livello di criticità 4 e 5", "gauge", "k-orange", "#/registro-nc")}
       ${kpi("Controlli", C.length, `${conf} conformi · ${ncC} NC${ris ? " · " + ris + " con riserva" : ""}`, "clipboard", "k-blue", "#/registro-controlli")}
+      ${kpi("Near miss aperti", d.near_miss.filter((x) => x.stato !== "nm_chiuso").length, `${d.near_miss.filter((x) => (x.data || "").startsWith(anno)).length} nel ${anno} · ${d.near_miss.filter((x) => x.stato !== "nm_chiuso" && parseInt(x.criticita, 10) >= 4).length} gravi/critici aperti`, "hardhat", "k-orange", "#/registro-near-miss")}
       ${kpi("Audit " + anno, Aanno.length, ESITI_AUDIT.map((e) => [e, Aanno.filter((a) => a.esito === e.v).length]).filter(([, n]) => n).map(([e, n]) => `${n} ${e.l.toLowerCase()}`).join(" · ") || `${A.length} in totale`, "award", "k-teal", "#/registro-audit")}
     </div>
 

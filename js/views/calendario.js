@@ -12,11 +12,13 @@ const KIND = {
   evento: { l: "Evento", c: "violet", i: "calendar" },
   scadenza: { l: "Scadenza", c: "amber", i: "clock" },
   audit_prev: { l: "Audit previsto", c: "teal", i: "award" },
+  nm: { l: "Azione near miss", c: "orange", i: "hardhat" },
+  rq: { l: "Richiesta (serve entro)", c: "blue", i: "cart" },
 };
 export const kindInfo = (k) => KIND[k] || KIND.evento;
 
 // Unisce NC aperte (con scadenza), audit clienti ed eventi in un'unica lista di voci di calendario
-export function vociCalendario({ nc = [], audit_clienti = [], eventi = [] }) {
+export function vociCalendario({ nc = [], audit_clienti = [], eventi = [], near_miss = [], richieste = [] }) {
   const V = [];
   nc.forEach((n) => { const s = statoScadenza(n); if (!s) return;
     V.push({ id: "nc-" + n.id, kind: "nc", start: s.data, end: s.data, title: `NC ${n.numero_report || ""}${aziendaOf(n) === "service" ? " (Service)" : ""}`,
@@ -30,6 +32,16 @@ export function vociCalendario({ nc = [], audit_clienti = [], eventi = [] }) {
   eventi.forEach((e) => { if (!e.data) return;
     V.push({ id: "ev-" + e.id, kind: e.tipo || "evento", start: e.data, end: e.data_fine || e.data, title: e.titolo || "Evento",
       sub: [e.azienda && aziendaLabel(e.azienda), e.note].filter(Boolean).join(" · "), done: !!e.fatto, ev: e }); });
+  near_miss.forEach((n) => (n.azioni || []).forEach((a, i) => { if (!a.scadenza || !a.azione || n.stato === "nm_chiuso") return;
+    const g = Math.round((toDate(a.scadenza) - toDate(isoDay())) / 86400000);
+    V.push({ id: `nm-${n.id}-${i}`, kind: "nm", start: a.scadenza, end: a.scadenza, title: `Near miss ${n.numero || ""}: ${a.azione}`,
+      sub: [a.responsabile, n.reparto].filter(Boolean).join(" · "), done: !!a.fatta,
+      status: a.fatta ? "" : g < 0 ? "scaduta" : g <= 7 ? "in_scadenza" : "", href: "#/near-miss/" + n.id }); }));
+  richieste.forEach((r) => { if (!r.entro || ["rq_evasa", "rq_rifiutata", "rq_annullata"].includes(r.stato)) return;
+    const g = Math.round((toDate(r.entro) - toDate(isoDay())) / 86400000);
+    V.push({ id: "rq-" + r.id, kind: "rq", start: r.entro, end: r.entro, title: `Richiesta ${r.numero || ""}: ${r.oggetto || ""}`,
+      sub: [r.richiesto_da, r.fornitore, r.priorita === "urgente" && "URGENTE"].filter(Boolean).join(" · "),
+      status: g < 0 ? "scaduta" : g <= 7 ? "in_scadenza" : "", href: "#/richiesta/" + r.id }); });
   return V.sort((a, b) => a.start.localeCompare(b.start));
 }
 const inDay = (v, k) => v.start <= k && (v.end || v.start) >= k;
@@ -55,7 +67,7 @@ export function Calendario({ voci, giorno, onGiorno, compact }) {
           <span class="cal-n">${dd.getDate()}</span>
           ${ev.length > 0 && html`<span class="cal-dots">${kinds.slice(0, 4).map((kk) => html`<i class=${"dot d-" + kindInfo(kk).c}></i>`)}${ev.length > 1 ? html`<em>${ev.length}</em>` : ""}</span>`}</button>`; })}
     </div>
-    <div class="legend"><i class="lg-red"></i>Scadenza NC <i class="lg-teal"></i>Audit <i class="lg-amber"></i>Scadenza <i class="lg-violet"></i>Evento</div>
+    <div class="legend"><i class="lg-red"></i>Scadenza NC <i class="lg-teal"></i>Audit <i class="lg-amber"></i>Scadenza <i class="lg-violet"></i>Evento <i class="lg-orange"></i>Near miss <i class="lg-blue"></i>Richieste</div>
   </div>`;
 }
 
@@ -67,7 +79,7 @@ export function VoceRow({ v, onEdit }) {
     <div class="grow"><b class=${v.done ? "done" : ""}>${v.title}</b><small>${ki.l}${v.sub ? " · " + v.sub : ""}</small></div>
     <div class="r"><span class="mono small">${fmtDate(v.start)}${v.end && v.end !== v.start ? " → " + fmtDate(v.end) : ""}</span>
       <small class=${v.status === "scaduta" ? "t-red" : v.status === "in_scadenza" ? "t-amber" : "muted"}>${v.done ? "fatto" : quando}</small></div>
-    ${v.status && v.status !== "in_corso" ? html`<${Badge} v=${v.status} />` : v.badge ? html`<${Badge} v=${v.badge} />` : null}`;
+    ${v.status && v.status !== "in_corso" && !v.done ? html`<${Badge} v=${v.status} />` : v.badge ? html`<${Badge} v=${v.badge} />` : null}`;
   return v.href ? html`<a class="mini" href=${v.href}>${inner}<${Icon} n="next" s=${14} /></a>`
     : html`<div class="mini">${inner}${isAdmin() && onEdit && html`<button class="btn ghost icon sm" title="Modifica" onClick=${() => onEdit(v.ev)}><${Icon} n="pencil" s=${14} /></button>`}</div>`;
 }

@@ -3,7 +3,7 @@ import { importBatch, wipeCollection, list, audit, session } from "../store.js";
 import { auth } from "../fb.js";
 import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "../../vendor/firebase.js";
 
-const COLS = [["controlli", "Controlli accettazione"], ["nc", "Non conformità"], ["audit_clienti", "Audit clienti"], ["eventi", "Eventi calendario"], ["soggetti", "Anagrafica fornitori/clienti"],
+const COLS = [["controlli", "Controlli accettazione"], ["nc", "Non conformità"], ["audit_clienti", "Audit clienti"], ["near_miss", "Near miss"], ["richieste", "Richieste effettuate"], ["eventi", "Eventi calendario"], ["soggetti", "Anagrafica fornitori/clienti"],
   ["rientri", "Rientri trasformatori"], ["operatori", "Operatori"], ["assegnazioni", "Assegnazioni strumenti"], ["catalogo_strumenti", "Elenco strumenti"], ["resistenze", "Resistenze fuori cassa"]];
 
 export function Impostazioni() {

@@ -1,8 +1,8 @@
 import { html, useState, useEffect, Icon, Badge, PageHeader, Card, Spinner, Empty, toast, confirmDialog, fmtDT, ago } from "../ui.js";
 import { watchSegnalazioni, setSegnalazione, delSegnalazione, audit } from "../store.js";
 
-const link = (s) => s.entity === "controlli" ? "#/controllo/" + s.entity_id : s.entity === "nc" ? "#/nc/" + s.entity_id : s.entity === "rientri" ? "#/rientro/" + s.entity_id : s.entity === "resistenze" ? "#/resistenza/" + s.entity_id : s.entity === "audit_clienti" ? "#/audit-cliente/" + s.entity_id : "#/";
-const ENT = { controlli: "Controllo", nc: "NC", ddt: "Documento", commesse: "Commessa", rientri: "Rientro", resistenze: "Resistenze", audit_clienti: "Audit" };
+const link = (s) => s.entity === "controlli" ? "#/controllo/" + s.entity_id : s.entity === "nc" ? "#/nc/" + s.entity_id : s.entity === "rientri" ? "#/rientro/" + s.entity_id : s.entity === "resistenze" ? "#/resistenza/" + s.entity_id : s.entity === "audit_clienti" ? "#/audit-cliente/" + s.entity_id : s.entity === "near_miss" ? "#/near-miss/" + s.entity_id : s.entity === "richieste" ? "#/richiesta/" + s.entity_id : "#/";
+const ENT = { controlli: "Controllo", nc: "NC", ddt: "Documento", commesse: "Commessa", rientri: "Rientro", resistenze: "Resistenze", audit_clienti: "Audit", near_miss: "Near miss", richieste: "Richieste" };
 
 export function Segnalazioni() {
   const [rows, setRows] = useState(null);

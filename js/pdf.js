@@ -400,3 +400,64 @@ export async function pdfReportAnnuale(R, anno, azL) {
 }
 const CRITICITA_PDF = ["1 Trasc.", "2 Lieve", "3 Mod.", "4 Grave", "5 Critica"];
 const ESITI_PDF = { positivo: "Positivo", parziale_positivo: "Parz. positivo", parziale_negativo: "Parz. negativo", negativo: "Negativo" };
+
+// ================= NEAR MISS (quasi incidente) =================
+export async function pdfNearMiss(n) {
+  const L = await load(); const doc = new L.jsPDF({ unit: "mm", format: "a4" });
+  const C = await import("./config.js");
+  const st = { nm_aperto: "APERTO", nm_gestione: "IN GESTIONE", nm_chiuso: "CHIUSO" }[n.stato] || "APERTO";
+  let y = header(doc, "SEGNALAZIONE NEAR MISS", `Quasi incidente N° ${n.numero || "—"} · ${st}`, await logoFor(n));
+  y = kv(doc, y, [["Azienda", aziendaLabel(aziendaOf(n))], ["Numero", n.numero], ["Data e ora", `${fmtDate(n.data)}${n.ora ? " · " + n.ora : ""}`], ["Reparto / area", n.reparto],
+    ["Punto preciso", n.luogo], ["Segnalato da", n.segnalato_da], ["Persone coinvolte", n.persone_coinvolte], ["Testimoni", n.testimoni]], L);
+  y = kv(doc, y, [["Tipo di pericolo", n.tipo_pericolo], ["Conseguenza possibile", (C.CONSEGUENZE_NM.find((x) => x.v === n.conseguenza) || {}).l],
+    ["Probabilità di ripetersi", (C.PROBABILITA_NM.find((x) => x.v === n.probabilita) || {}).l], ["Livello di criticità", (C.critNM(n.criticita) || {}).l]], L);
+  y = block(doc, y, "Descrizione dell'accaduto", n.descrizione, L);
+  y = block(doc, y, "Cosa sarebbe potuto succedere", n.cosa_poteva, L);
+  y = kv(doc, y, [["Causa principale", n.causa_categoria]], L);
+  y = block(doc, y, "Analisi della causa", n.causa, L);
+  y = block(doc, y, "Azioni immediate", n.azioni_immediate, L);
+  const az = (n.azioni || []).filter((a) => a.azione);
+  if (az.length) {
+    L.autoTable(doc, { startY: ensure(doc, y, 20), theme: "striped", styles: { fontSize: 8 }, headStyles: { fillColor: RED },
+      head: [["Azione correttiva / preventiva", "Responsabile", "Scadenza", "Fatta"]],
+      body: az.map((a) => [a.azione, a.responsabile || "", fmtDate(a.scadenza), a.fatta ? "Sì" + (a.data_fatta ? " · " + fmtDate(a.data_fatta) : "") : "No"]) });
+    y = doc.lastAutoTable.finalY + 5;
+  }
+  y = block(doc, y, "Verifica efficacia", n.verifica_efficacia, L);
+  y = kv(doc, y, [["Stato", st], ["Data chiusura", fmtDate(n.data_chiusura)]], L);
+  y = block(doc, y, "Note", n.note, L);
+  y = ensure(doc, y, 36);
+  await firma(doc, y, "Firma di chi segnala", n.firma_segnalatore, 14);
+  await firma(doc, y, "Firma responsabile / RSPP", n.firma_responsabile, 76);
+  y += 38;
+  await photos(doc, y, n.id);
+  footer(doc, `Near miss ${aziendaOf(n) === "service" ? "Mace Service " : ""}${n.numero || ""}`);
+  audit("pdf_download", "near_miss", n.id, n.numero);
+  save(doc, `NearMiss_${aziendaOf(n) === "service" ? "Service_" : ""}${(n.numero || "").replace(/\W+/g, "-")}.pdf`);
+}
+
+// ================= RICHIESTA EFFETTUATA =================
+export async function pdfRichiesta(r) {
+  const L = await load(); const doc = new L.jsPDF({ unit: "mm", format: "a4" });
+  const C = await import("./config.js");
+  const stL = (v) => (C.STATI_RICHIESTA.find((x) => x.v === v) || C.STATI_RICHIESTA[0]).l;
+  let y = header(doc, "RICHIESTA", `N° ${r.numero || "—"} · ${stL(r.stato).toUpperCase()}`, await logoFor(r));
+  y = kv(doc, y, [["Azienda", aziendaLabel(aziendaOf(r))], ["Numero", r.numero], ["Data richiesta", fmtDate(r.data)], ["Tipo", r.tipo],
+    ["Quantità", r.quantita ? `${r.quantita} ${r.um || ""}` : ""], ["Priorità", (C.PRIORITA_RQ.find((x) => x.v === r.priorita) || {}).l],
+    ["Serve entro", fmtDate(r.entro)], ["Reparto", r.reparto], ["Richiesto da", r.richiesto_da], ["Inviata a", r.destinatario],
+    ["Fornitore", r.fornitore], ["Collegata a", r.riferimento]], L);
+  y = block(doc, y, "Oggetto", r.oggetto, L);
+  y = block(doc, y, "Descrizione / specifiche", r.descrizione, L);
+  if ((r.storico || []).length) {
+    L.autoTable(doc, { startY: ensure(doc, y, 20), theme: "striped", styles: { fontSize: 8 }, headStyles: { fillColor: [39, 39, 42] },
+      head: [["Data", "Aggiornamento", "Stato", "Autore"]], body: r.storico.map((s) => [fmtDate(s.data), s.nota || "—", s.stato ? stL(s.stato) : "", (s.autore || "").split("@")[0]]) });
+    y = doc.lastAutoTable.finalY + 5;
+  }
+  y = kv(doc, y, [["Stato", stL(r.stato)], ["N° ordine", r.ordine], ["Data esito", fmtDate(r.data_esito)], ["Data consegna", fmtDate(r.data_consegna)]], L);
+  y = block(doc, y, "Esito / risposta", r.esito, L);
+  y = block(doc, y, "Note", r.note, L);
+  await photos(doc, y, r.id);
+  footer(doc, `Richiesta ${aziendaOf(r) === "service" ? "Mace Service " : ""}${r.numero || ""}`);
+  audit("pdf_download", "richieste", r.id, r.numero);
+  save(doc, `Richiesta_${aziendaOf(r) === "service" ? "Service_" : ""}${(r.numero || "").replace(/\W+/g, "-")}.pdf`);
+}

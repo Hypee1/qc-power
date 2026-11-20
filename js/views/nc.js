@@ -26,9 +26,9 @@ function NDCheck({ value, onSet, disabled }) {
 }
 
 // Scelta del livello di criticità: 5 pulsanti con spiegazione
-export function CritPicker({ value, onChange, disabled }) {
-  const sel = critOf(value);
-  return html`<div><div class="crit-pick">${CRITICITA.map((c) => html`<button type="button" key=${c.v} disabled=${disabled} title=${c.d}
+export function CritPicker({ value, onChange, disabled, levels = CRITICITA }) {
+  const sel = levels.find((x) => x.v === String(value || ""));
+  return html`<div><div class="crit-pick">${levels.map((c) => html`<button type="button" key=${c.v} disabled=${disabled} title=${c.d}
     class=${"crit c-" + c.c + (String(value) === c.v ? " on" : "")} onClick=${() => onChange(String(value) === c.v ? "" : c.v)}>
     <b>${c.v}</b><span>${c.s}</span></button>`)}</div>
     <small class="hint">${sel ? sel.d : "Scegli da 1 (trascurabile) a 5 (critica): serve per i report di fine anno."}</small></div>`;

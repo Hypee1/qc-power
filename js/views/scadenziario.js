@@ -4,10 +4,10 @@ import { useCollections } from "./common.js";
 import { APP } from "../config.js";
 import { Calendario, VoceRow, EventoModal, vociCalendario, nuovoEvento } from "./calendario.js";
 
-const FILTRI = [["", "Tutto"], ["nc", "Scadenze NC"], ["audit", "Audit"], ["scadenza", "Scadenze"], ["evento", "Eventi"]];
+const FILTRI = [["", "Tutto"], ["nc", "Scadenze NC"], ["audit", "Audit"], ["scadenza", "Scadenze"], ["evento", "Eventi"], ["nm", "Near miss"], ["rq", "Richieste"]];
 
 export function Scadenziario() {
-  const [d, reload] = useCollections(["nc", "audit_clienti", "eventi"]);
+  const [d, reload] = useCollections(["nc", "audit_clienti", "eventi", "near_miss", "richieste"]);
   const [filtro, setFiltro] = useState("");
   const [giorno, setGiorno] = useState("");
   const [ev, setEv] = useState(null);

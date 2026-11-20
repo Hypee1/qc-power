@@ -13,6 +13,8 @@ import { Ricerca } from "./views/ricerca.js";
 import { AuditClienteForm, RegistroAudit } from "./views/audit-clienti.js";
 import { ReportNC } from "./views/report-nc.js";
 import { Anagrafica } from "./views/anagrafica.js";
+import { NearMissForm, RegistroNearMiss } from "./views/near-miss.js";
+import { RichiestaForm, RegistroRichieste } from "./views/richieste.js";
 import { AuditLog } from "./views/audit.js";
 import { Console } from "./views/console.js";
 import { Segnalazioni } from "./views/segnalazioni.js";
@@ -60,6 +62,12 @@ const NAV = [
   { sep: "Audit clienti" },
   { p: "/audit-cliente", l: "Nuovo Audit", i: "award", admin: true },
   { p: "/registro-audit", l: "Registro Audit", i: "shield" },
+  { sep: "Sicurezza" },
+  { p: "/near-miss", l: "Nuovo Near Miss", i: "hardhat", admin: true },
+  { p: "/registro-near-miss", l: "Registro Near Miss", i: "alert" },
+  { sep: "Richieste" },
+  { p: "/richiesta", l: "Nuova Richiesta", i: "cart", admin: true },
+  { p: "/registro-richieste", l: "Richieste effettuate", i: "inbox" },
   { sep: "Rientri & Produzione" },
   { p: "/rientro", l: "Rientro Trasformatore", i: "undo", admin: true },
   { p: "/registro-rientri", l: "Registro Rientri", i: "zap" },
@@ -94,6 +102,10 @@ function view(route) {
     case "audit-cliente": return b ? html`<${AuditClienteForm} id=${b} key=${b} />` : admin ? html`<${AuditClienteForm} key=${"new" + (location.hash.split("?")[1] || "")} />` : null;
     case "report-nc": return html`<${ReportNC} />`;
     case "anagrafica": return html`<${Anagrafica} />`;
+    case "registro-richieste": return html`<${RegistroRichieste} />`;
+    case "richiesta": return b ? html`<${RichiestaForm} id=${b} key=${b} />` : admin ? html`<${RichiestaForm} key=${"new" + (location.hash.split("?")[1] || "")} />` : null;
+    case "registro-near-miss": return html`<${RegistroNearMiss} />`;
+    case "near-miss": return b ? html`<${NearMissForm} id=${b} key=${b} />` : admin ? html`<${NearMissForm} key=${"new" + (location.hash.split("?")[1] || "")} />` : null;
     case "audit": return admin ? html`<${AuditLog} />` : null;
     case "console": return admin ? html`<${Console} />` : null;
     case "segnalazioni": return admin ? html`<${Segnalazioni} />` : null;
@@ -205,7 +217,7 @@ function Shell({ route }) {
   const base0 = "/" + (route.split("/")[1] || "").split("?")[0];
   // le schede aperte evidenziano il loro registro (es. una NC aperta → Registro NC)
   const detail = route.split("?")[0].split("/")[2];
-  const base = detail ? ({ "/nc": "/registro-nc", "/controllo": "/registro-controlli", "/audit-cliente": "/registro-audit", "/rientro": "/registro-rientri" }[base0] || base0) : base0;
+  const base = detail ? ({ "/nc": "/registro-nc", "/controllo": "/registro-controlli", "/audit-cliente": "/registro-audit", "/near-miss": "/registro-near-miss", "/richiesta": "/registro-richieste", "/rientro": "/registro-rientri" }[base0] || base0) : base0;
   const logout = async () => { await doLogout("logout"); };
   const v = view(route.split("?")[0]);
   return html`<div class=${"shell" + (collapsed ? " collapsed" : "") + (mobile ? " mob-open" : "")}>

@@ -81,3 +81,45 @@ export const ESITI_AUDIT = [
   { v: "negativo", l: "Negativo", c: "red" },
 ];
 export const TIPI_AUDIT = ["Audit di sistema (qualità)", "Audit di processo", "Collaudo / FAT presso di noi", "Test di tipo", "Ispezione su fornitura", "Audit di seconda parte", "Altro"];
+
+// ---------- NEAR MISS (quasi incidenti) ----------
+export const REPARTI = ["Avvolgimento", "Montaggio parte attiva", "Carpenteria", "Verniciatura", "Essiccazione / forno", "Riempimento olio", "Sala prove", "Magazzino",
+  "Carico / scarico", "Piazzale esterno", "Uffici", "Cantiere presso cliente"];
+export const PERICOLI_NM = ["Caduta di oggetti / materiale", "Scivolamento / inciampo", "Caduta dall'alto", "Sollevamento con carroponte / gru", "Carrello elevatore / mezzi",
+  "Movimentazione manuale carichi", "Rischio elettrico", "Prove in tensione / alta tensione", "Macchine e attrezzature", "Taglio / schiacciamento / urto",
+  "Olio / sostanze chimiche", "Incendio / esplosione", "Proiezione di schegge / particelle", "Ergonomico / postura", "Altro"];
+export const CAUSE_NM = ["Procedura non rispettata / comportamento", "Procedura mancante o non chiara", "Attrezzatura difettosa / non idonea", "DPI non usati / non idonei",
+  "Ordine e pulizia", "Formazione / informazione insufficiente", "Fretta / organizzazione del lavoro", "Ambiente (luce, spazi, pavimento)", "Altro"];
+export const CONSEGUENZE_NM = [
+  { v: "nessuna", l: "Nessuna lesione (solo danni a cose)" },
+  { v: "lieve", l: "Lesione lieve (medicazione)" },
+  { v: "infortunio", l: "Infortunio con assenza dal lavoro" },
+  { v: "grave", l: "Infortunio grave / invalidante" },
+  { v: "mortale", l: "Potenzialmente mortale" },
+];
+export const PROBABILITA_NM = [{ v: "bassa", l: "Bassa — difficile che si ripeta" }, { v: "media", l: "Media — può ripetersi" }, { v: "alta", l: "Alta — succede spesso" }];
+// Criticità del quasi incidente: stessi 5 livelli delle NC, spiegati in ottica sicurezza
+export const CRITICITA_NM = [
+  { v: "1", l: "1 · Trascurabile", s: "Trascurabile", c: "zinc", d: "Al massimo un danno a cose di poco conto, nessun rischio reale per le persone." },
+  { v: "2", l: "2 · Lieve", s: "Lieve", c: "blue", d: "Poteva causare una lesione lieve (graffio, piccola contusione) da medicare." },
+  { v: "3", l: "3 · Moderata", s: "Moderata", c: "amber", d: "Poteva causare un infortunio con qualche giorno di assenza dal lavoro." },
+  { v: "4", l: "4 · Grave", s: "Grave", c: "orange", d: "Poteva causare un infortunio serio (fratture, ricovero) o danni importanti a impianti." },
+  { v: "5", l: "5 · Critica", s: "Critica", c: "red", d: "Poteva causare un infortunio molto grave o mortale: intervenire subito." },
+];
+export const critNM = (v) => CRITICITA_NM.find((x) => x.v === String(v || ""));
+
+// ---------- RICHIESTE EFFETTUATE (acquisti, DPI, manutenzioni, servizi…) ----------
+export const TIPI_RICHIESTA = ["Acquisto materiale", "Acquisto attrezzatura / funi / brache", "DPI", "Ricambi", "Manutenzione / riparazione", "Taratura strumenti",
+  "Servizio esterno", "Formazione", "Informatica / software", "Altro"];
+export const STATI_RICHIESTA = [
+  { v: "rq_inviata", l: "Inviata", c: "blue" },
+  { v: "rq_valutazione", l: "In valutazione", c: "amber" },
+  { v: "rq_approvata", l: "Approvata", c: "teal" },
+  { v: "rq_ordinata", l: "Ordinata", c: "violet" },
+  { v: "rq_evasa", l: "Evasa / consegnata", c: "green" },
+  { v: "rq_rifiutata", l: "Rifiutata", c: "red" },
+  { v: "rq_annullata", l: "Annullata", c: "zinc" },
+];
+export const RQ_CHIUSE = ["rq_evasa", "rq_rifiutata", "rq_annullata"];
+export const PRIORITA_RQ = [{ v: "bassa", l: "Bassa" }, { v: "normale", l: "Normale" }, { v: "alta", l: "Alta" }, { v: "urgente", l: "Urgente" }];
+export const DESTINATARI_RQ = ["Ufficio acquisti", "Direzione", "Ufficio tecnico", "Produzione", "Amministrazione", "Fornitore esterno"];
