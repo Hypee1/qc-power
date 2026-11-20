@@ -6,14 +6,26 @@ rules_version = '2';
 //  Ospite = ospite@macepower.qc  → legge tutto, può SOLO inviare solleciti/note
 //  Chiunque altro (anche se registrato) → nessun accesso
 //  Se cambi le email in js/config.js, cambiale anche qui sotto.
+//
+//  PROTEZIONI EXTRA
+//  · Login valido solo con email+password e per massimo 12 ore: dopo bisogna
+//    rientrare. Se qualcuno ruba la sessione, dopo 12 ore non vale più niente.
+//  · Ogni scrittura dell'ospite e dei log è controllata campo per campo
+//    (solo i campi previsti, lunghezze massime, valori ammessi).
+//  · Allegati: solo tipi di file sicuri (foto, PDF, Office, testo).
 // =====================================================================
 service cloud.firestore {
   match /databases/{database}/documents {
 
     function signed()  { return request.auth != null; }
     function email()   { return request.auth.token.email; }
-    function isAdmin() { return signed() && email() == 'admin@macepower.qc'; }
-    function isGuest() { return signed() && email() == 'ospite@macepower.qc'; }
+    // login fatto con email+password e da meno di 12 ore
+    function fresh()   { return request.auth.token.firebase.sign_in_provider == 'password'
+                               && (!('auth_time' in request.auth.token)
+                                   || request.time < timestamp.value(int(request.auth.token.auth_time) * 1000) + duration.value(12, 'h')); }
+    function isAdmin() { return signed() && email() == 'admin@macepower.qc' && fresh(); }
+    function isGuest() { return signed() && email() == 'ospite@macepower.qc' && fresh(); }
+    function opt(k, max) { return !(k in d()) || d()[k] == null || str(d()[k], max); }
     function member()  { return isAdmin() || isGuest(); }
     function d()       { return request.resource.data; }
     function str(v, max) { return v is string && v.size() <= max; }
@@ -45,14 +57,18 @@ service cloud.firestore {
     // ---------- Allegati (file in base64, max ~1 MB per documento) ----------
     match /allegati/{id} {
       allow read: if member();
-      allow create, update: if isAdmin() && str(d().data, 1000000) && str(d().parent_id, 100);
+      allow create, update: if isAdmin() && str(d().data, 1000000) && str(d().parent_id, 100) && str(d().name, 250)
+        && d().type in ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf', 'text/plain', 'application/msword', 'application/vnd.ms-excel',
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+        && d().parent_type in ['controlli', 'nc', 'ddt', 'commesse', 'rientri', 'resistenze', 'audit_clienti', 'near_miss', 'richieste'];
       allow delete: if isAdmin();
     }
 
     // Parti dei file grandi (es. report PDF degli audit oltre ~900 KB)
     match /allegati_parti/{id} {
       allow read: if member();
-      allow create, update: if isAdmin() && str(d().data, 1000000) && str(d().att_id, 100);
+      allow create, update: if isAdmin() && str(d().data, 1000000) && str(d().att_id, 100)
+        && d().keys().hasOnly(['att_id', 'idx', 'data']) && d().idx is int && d().idx > 0 && d().idx < 20;
       allow delete: if isAdmin();
     }
 
@@ -75,27 +91,36 @@ service cloud.firestore {
       allow update: if false;
       allow create: if d().ts == request.time
         && d().keys().hasOnly(['evento', 'email', 'role', 'ts', 'ip', 'citta', 'regione', 'paese', 'provider', 'dispositivo', 'os', 'browser', 'modello', 'schermo', 'lingua', 'fuso', 'ua', 'sid', 'motivo'])
-        && str(d().email, 120) && str(d().ua, 400) && str(d().ip, 60)
+        && str(d().email, 120) && str(d().ua, 400) && str(d().ip, 60) && opt('role', 20) && opt('citta', 80) && opt('regione', 80)
+        && opt('paese', 80) && opt('provider', 120) && opt('dispositivo', 40) && opt('os', 60) && opt('browser', 60) && opt('modello', 80)
+        && opt('schermo', 40) && opt('lingua', 20) && opt('fuso', 60) && opt('sid', 60) && opt('motivo', 80)
         && (
           (member() && d().email == email() && d().evento in ['login', 'logout', 'timeout', 'ripresa_sessione'])
-          // tentativo fallito: l'utente non è ancora autenticato
-          || (!signed() && d().evento == 'login_fallito')
+          // tentativo fallito: l'utente non è autenticato → si accettano solo i due account veri
+          || (!signed() && d().evento == 'login_fallito' && d().email in ['admin@macepower.qc', 'ospite@macepower.qc'])
         );
     }
 
     match /sessioni/{id} {
       allow read, delete: if isAdmin();
       allow create: if member() && d().email == email()
-        && d().keys().hasOnly(['email', 'role', 'inizio', 'ultimo', 'fine', 'pagine', 'pagina', 'ip', 'citta', 'provider', 'dispositivo', 'os', 'browser', 'modello', 'schermo']);
+        && d().keys().hasOnly(['email', 'role', 'inizio', 'ultimo', 'fine', 'pagine', 'pagina', 'ip', 'citta', 'provider', 'dispositivo', 'os', 'browser', 'modello', 'schermo'])
+        && opt('pagina', 200) && opt('ip', 60) && opt('citta', 80) && opt('provider', 120) && opt('dispositivo', 40) && opt('os', 60)
+        && opt('browser', 60) && opt('modello', 80) && opt('schermo', 40) && opt('role', 20);
       allow update: if member() && resource.data.email == email()
-        && d().diff(resource.data).affectedKeys().hasOnly(['ultimo', 'pagina', 'pagine', 'fine']);
+        && d().diff(resource.data).affectedKeys().hasOnly(['ultimo', 'pagina', 'pagine', 'fine'])
+        && opt('pagina', 200) && (!('pagine' in d()) || (d().pagine is int && d().pagine < 100000));
     }
 
-    // ---------- Audit log: scrivibile da entrambi, leggibile solo da admin, non modificabile ----------
+    // ---------- Registro attività: scrivibile da entrambi, leggibile solo da admin, non modificabile ----------
     match /audit/{id} {
       allow read: if isAdmin();
       allow create: if member() && d().user_email == email() && d().ts == request.time
-        && str(d().label, 200) && str(d().details, 500);
+        && d().keys().hasOnly(['action', 'entity', 'entity_id', 'label', 'details', 'user_email', 'user_role', 'ts', 'sid'])
+        && str(d().label, 200) && str(d().details, 500) && str(d().entity, 40) && str(d().entity_id, 100) && opt('sid', 60) && opt('user_role', 20)
+        // l'ospite può registrare solo consultazioni e download, non finte modifiche
+        && ((isAdmin() && d().action in ['create', 'update', 'delete', 'allegato', 'import', 'login', 'password', 'pdf_download', 'view', 'risposta'])
+            || (isGuest() && d().action in ['view', 'pdf_download', 'login']));
       allow update, delete: if false;
     }
 

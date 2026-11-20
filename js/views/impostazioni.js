@@ -2,6 +2,7 @@ import { html, useState, Icon, PageHeader, Card, Field, toast, confirmDialog, do
 import { importBatch, wipeCollection, list, audit, session } from "../store.js";
 import { auth } from "../fb.js";
 import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "../../vendor/firebase.js";
+import { controllaPassword, pulisciRecord } from "../security.js";
 
 const COLS = [["controlli", "Controlli accettazione"], ["nc", "Non conformità"], ["audit_clienti", "Audit clienti"], ["near_miss", "Near miss"], ["richieste", "Richieste effettuate"], ["eventi", "Eventi calendario"], ["soggetti", "Anagrafica fornitori/clienti"],
   ["rientri", "Rientri trasformatori"], ["operatori", "Operatori"], ["assegnazioni", "Assegnazioni strumenti"], ["catalogo_strumenti", "Elenco strumenti"], ["resistenze", "Resistenze fuori cassa"]];
@@ -16,7 +17,13 @@ export function Impostazioni() {
   const onFile = async (e) => {
     const f = e.target.files[0]; e.target.value = ""; if (!f) return;
     try {
-      const j = JSON.parse(await f.text());
+      if (f.size > 60 * 1024 * 1024) throw new Error("file troppo grande (max 60 MB)");
+      const raw = JSON.parse(await f.text());
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("struttura non valida");
+      // tiene solo le collezioni conosciute e record con ID puliti
+      const j = {}; let scartati = 0;
+      for (const [k] of COLS) if (Array.isArray(raw[k])) { j[k] = raw[k].map(pulisciRecord).filter(Boolean); scartati += raw[k].length - j[k].length; }
+      if (scartati) toast.info(`${scartati} record scartati perché senza ID valido`);
       if (!j.controlli && !j.nc && !j.rientri && !j.operatori && !j.resistenze && !j.audit_clienti) throw new Error("File non riconosciuto");
       setSeed(j); toast.ok("File letto: controlla i numeri e premi Importa");
     } catch (err) { toast.err("File non valido: " + err.message); }
@@ -48,8 +55,10 @@ export function Impostazioni() {
     setBusy(true); try { await wipeCollection(k); audit("delete", k, "*", "svuotata collezione"); toast.ok(l + " svuotata"); } catch (e) { toast.err(e.code); } setBusy(false);
   };
   const cambiaPw = async () => {
-    if (pw.n1.length < 8) return toast.err("La nuova password deve avere almeno 8 caratteri");
+    const debole = controllaPassword(pw.n1, auth.currentUser && auth.currentUser.email);
+    if (debole) return toast.err("Password troppo debole: " + debole);
     if (pw.n1 !== pw.n2) return toast.err("Le due password non coincidono");
+    if (pw.n1 === pw.old) return toast.err("La nuova password deve essere diversa da quella attuale");
     try {
       await reauthenticateWithCredential(auth.currentUser, EmailAuthProvider.credential(auth.currentUser.email, pw.old));
       await updatePassword(auth.currentUser, pw.n1);
@@ -77,7 +86,7 @@ export function Impostazioni() {
       <${Card} title="3 · Cambia la tua password">
         <div class="form-col">
           <${Field} label="Password attuale"><input type="password" class="inp" autocomplete="current-password" value=${pw.old} onInput=${(e) => setPw({ ...pw, old: e.target.value })} /></${Field}>
-          <${Field} label="Nuova password (min. 8)"><input type="password" class="inp" autocomplete="new-password" value=${pw.n1} onInput=${(e) => setPw({ ...pw, n1: e.target.value })} /></${Field}>
+          <${Field} label="Nuova password (min. 12, lettere + numeri + simbolo)"><input type="password" class="inp" autocomplete="new-password" value=${pw.n1} onInput=${(e) => setPw({ ...pw, n1: e.target.value })} /></${Field}>
           <${Field} label="Ripeti nuova password"><input type="password" class="inp" autocomplete="new-password" value=${pw.n2} onInput=${(e) => setPw({ ...pw, n2: e.target.value })} /></${Field}>
           <button class="btn primary" onClick=${cambiaPw}><${Icon} n="key" /> Aggiorna password</button>
           <small class="muted">La password dell'Ospite si cambia da Firebase Console → Authentication → Utenti → ⋮ → Reimposta password.</small>

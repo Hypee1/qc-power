@@ -6,12 +6,39 @@ Copia del gestionale qualità (controlli di accettazione, NC, scadenziario, DDT,
 - **Ospite in sola lettura**: vede tutto ma non modifica niente. Su ogni controllo, NC, DDT e commessa ha il tasto **Sollecita** e sotto **"Vuoi aggiungere note?"**.
 - **Segnalazioni**: solleciti e note arrivano in tempo reale nel portale admin (campanella + pagina Segnalazioni). Puoi rispondere e l'ospite vede la risposta.
 - **Console accessi** (solo admin): login riusciti e falliti, IP, città, provider, tipo di dispositivo, sistema operativo, browser, sessioni online e cosa ha guardato l'ospite.
-- Firme digitali, allegati (foto compresse in automatico, PDF fino a 700 KB), PDF stampabili, export CSV, backup JSON.
+- Firme digitali, allegati (foto compresse in automatico, PDF fino a 8 MB), PDF stampabili, export CSV, backup JSON.
 - Disconnessione automatica dopo 30 minuti di inattività. La sessione dura finché non chiudi il browser.
 
 > In parole povere: il codice su GitHub è come la **porta del magazzino**, la vedono tutti. I **dati** sono dentro Firebase, chiusi a chiave: senza la password giusta il database risponde "accesso negato". Per questo il file `seed-data.json` **non va mai caricato su GitHub**.
 
 ---
+
+## 🔒 Sicurezza (novembre 2026)
+
+**Cosa protegge il sito da solo**
+- **Regole database rinforzate** (`firestore.rules`): login valido solo con email+password e per **max 12 ore**; ogni scrittura dell'ospite e dei log è controllata campo per campo; l'ospite non può scrivere finte "modifiche" nel registro attività; i tentativi di login falliti si registrano solo per i due account veri; allegati solo di tipi sicuri.
+- **Anti-clickjacking** (`js/guard.js`): il sito non si mostra se qualcuno lo incorpora dentro un'altra pagina.
+- **CSP più stretta** in `index.html`: niente script esterni, niente form verso altri siti, niente plugin; tutto forzato in HTTPS.
+- **Login**: dopo 5 errori blocco di 1 minuto, poi 5, 15, 60 minuti (resiste anche al refresh della pagina).
+- **Sessione**: si chiude dopo 30 minuti di inattività, alla chiusura del browser e comunque dopo 12 ore.
+- **Allegati**: si controlla il contenuto vero del file (un .exe rinominato .pdf viene scartato); SVG, HTML e doppie estensioni bloccati; i file non visualizzabili si scaricano invece di aprirsi dentro il sito.
+- **Export CSV**: le celle che Excel trasformerebbe in formule (`=`, `+`, `@`) vengono neutralizzate.
+- **Password**: almeno 12 caratteri con lettere, numeri e simbolo, niente "mace", "admin", "password".
+- **Import JSON**: solo collezioni conosciute e ID puliti.
+- **Console del browser**: avviso "STOP" contro chi ti chiede di incollare codice.
+
+**Da fare UNA volta nelle console (solo tu puoi)**
+1. **Firestore → Regole** → incolla tutto `firestore.rules` → Pubblica. Se qualcosa dà "accesso negato", la scheda Regole ha la **cronologia**: ripristini la versione precedente con un clic.
+2. **Authentication → Impostazioni → Azioni utente**: togli la spunta a **"Abilita creazione (registrazione)"** e **"Abilita eliminazione"** → nessuno può crearsi account dall'esterno.
+3. **Authentication → Impostazioni → Protezione enumerazione email**: attivala.
+4. **Authentication → Impostazioni → Domini autorizzati**: lascia solo `hypee1.github.io` e `controllo-quality.firebaseapp.com` (togli `localhost`).
+5. **Google Cloud → Credenziali → chiave "Browser key"**: Restrizioni applicazione = **Referrer HTTP** `https://hypee1.github.io/*`; Restrizioni API = solo **Identity Toolkit API**, **Token Service API**, **Cloud Firestore API**.
+6. **Cambia le due password** da Impostazioni (nuove regole: min. 12 caratteri). Quella admin solo tua, in un gestore di password.
+7. **Verifica in 2 passaggi** sull'account Google che possiede Firebase e sull'account GitHub.
+8. **GitHub**: cancella i file vecchi `js/views/archivio.js`, `commesse.js`, `ddt.js` e i file `download`, `download (1)`, `download (2)`.
+9. **Backup** mensile da Impostazioni, salvato fuori dal PC (chiavetta o cloud aziendale).
+
+**Limiti che restano (onestamente)**: GitHub Pages non permette di impostare gli header di sicurezza del server; la chiave Firebase è pubblica per natura (la protezione vera sono le regole + le restrizioni del punto 5); App Check (anti-bot di Google) richiederebbe di aggiornare la libreria Firebase inclusa: si può fare in un secondo momento.
 
 ## Novità (novembre 2026): Audit clienti, criticità NC, anagrafica unica, 4 temi
 

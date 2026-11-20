@@ -1,3 +1,6 @@
+import { antiFrame, consoleWarning, loginLocked, loginFailed, loginOk, sessioneScaduta } from "./security.js";
+antiFrame();
+consoleWarning();
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "../vendor/firebase.js";
 import { auth, EMU } from "./fb.js";
 import { ACCOUNTS, APP } from "./config.js";
@@ -120,24 +123,26 @@ function Login() {
   const [pw, setPw] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [lockUntil, setLock] = useState(0);
-  const fails = useRef(0);
+  const [lockUntil, setLock] = useState(loginLocked());
   const inp = useRef(null);
   useEffect(() => { who && inp.current && inp.current.focus(); }, [who]);
 
   const submit = async (e) => {
     e.preventDefault();
-    if (Date.now() < lockUntil) return setErr(`Troppi tentativi. Riprova tra ${Math.ceil((lockUntil - Date.now()) / 1000)} secondi.`);
+    const lk = loginLocked();
+    if (lk) { setLock(lk); return setErr(`Troppi tentativi. Riprova tra ${Math.ceil((lk - Date.now()) / 60000)} minuti.`); }
     setBusy(true); setErr("");
     const acc = ACCOUNTS[who];
     try {
       sessionStorage.setItem("qc-fresh-login", "1");
       await signInWithEmailAndPassword(auth, acc.email, pw);
+      loginOk();
     } catch (ex) {
       sessionStorage.removeItem("qc-fresh-login");
-      fails.current++;
-      logAccess("login_fallito", acc.email, acc.role, { motivo: ex.code || "errore" });
-      if (fails.current >= 5) { setLock(Date.now() + 60000); fails.current = 0; }
+      logAccess("login_fallito", acc.email, acc.role, { motivo: String(ex.code || "errore").slice(0, 80) });
+      const lk = loginFailed(); if (lk) setLock(lk);
+      // attesa crescente: rende inutili i tentativi automatici a raffica
+      await new Promise((r) => setTimeout(r, 1200));
       setErr(ex.code === "auth/too-many-requests" ? "Troppi tentativi: account temporaneamente bloccato da Firebase. Riprova più tardi."
         : ex.code === "auth/network-request-failed" ? "Connessione assente." : "Password non corretta.");
       setPw("");
@@ -272,6 +277,8 @@ function App() {
     if (!u) { session.user = null; setState("out"); return; }
     const role = u.email === ACCOUNTS.admin.email ? "admin" : u.email === ACCOUNTS.guest.email ? "ospite" : null;
     if (!role) { await signOut(auth); toast.err("Account non autorizzato"); return; }
+    // sessione più vecchia di 12 ore → si rientra (il database comunque la rifiuterebbe)
+    if (await sessioneScaduta(u)) { await signOut(auth); session.user = null; sessionStorage.removeItem("qc-sid"); toast.info("Sessione scaduta (max 12 ore): accedi di nuovo"); setState("out"); return; }
     session.user = { uid: u.uid, email: u.email, role, label: role === "admin" ? ACCOUNTS.admin.label : ACCOUNTS.guest.label };
     const fresh = sessionStorage.getItem("qc-fresh-login");
     session.sid = sessionStorage.getItem("qc-sid");
@@ -284,6 +291,8 @@ function App() {
       clearInterval(session.beat); session.beat = setInterval(() => heartbeat(), 60000); heartbeat();
     }
     armIdle();
+    clearInterval(session.maxAge);
+    session.maxAge = setInterval(async () => { if (auth.currentUser && await sessioneScaduta(auth.currentUser)) { toast.info("Sessione scaduta (max 12 ore): accedi di nuovo"); doLogout("timeout"); } }, 5 * 60000);
     setState("in");
   }), []);
   return html`<${Toasts} /><${ConfirmHost} />

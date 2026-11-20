@@ -1,5 +1,6 @@
 import { html, useState, useEffect, useRef, Icon, toast, fmtDT, confirmDialog } from "./ui.js";
 import { listAllegati, addAllegato, delAllegato, allegatoData, isAdmin } from "./store.js";
+import { verificaFile, APRIBILE, TIPI_OK } from "./security.js";
 import { APP } from "./config.js";
 
 // ================= FIRMA =================
@@ -119,9 +120,11 @@ export function SignaturePad({ label, value, onChange, disabled, firmatario, onF
 }
 
 // ================= ALLEGATI =================
-async function readFile(file) {
-  const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
-  if (!file.type.startsWith("image/") || file.type === "image/gif") return { name: file.name, type: file.type, data: dataUrl };
+async function readFile(file, tipo = file.type) {
+  let dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
+  dataUrl = "data:" + tipo + ";base64," + dataUrl.slice(dataUrl.indexOf(",") + 1); // tipo verificato, non quello dichiarato dal browser
+  const name = String(file.name).replace(/[\u0000-\u001f<>:"/\\|?*]+/g, "_").slice(0, 200);
+  if (!tipo.startsWith("image/") || tipo === "image/gif") return { name, type: tipo, data: dataUrl };
   // Comprime le foto (max 1600px, JPEG 80%) per stare nei limiti di Firestore
   const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = dataUrl; });
   const max = 1600, k = Math.min(1, max / Math.max(img.width, img.height));
@@ -130,7 +133,7 @@ async function readFile(file) {
   c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
   let q = 0.8, out = c.toDataURL("image/jpeg", q);
   while (out.length * 0.75 > APP.maxAllegatoKB * 1024 && q > 0.35) { q -= 0.1; out = c.toDataURL("image/jpeg", q); }
-  return { name: file.name.replace(/\.\w+$/, "") + ".jpg", type: "image/jpeg", data: out };
+  return { name: name.replace(/\.\w+$/, "") + ".jpg", type: "image/jpeg", data: out };
 }
 const kb = (dataUrl) => Math.round((dataUrl.length * 0.75) / 1024);
 
@@ -141,13 +144,23 @@ export async function openDataUrl(a) {
   const [meta, b64] = data.split(",");
   const bin = atob(b64); const arr = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-  const url = URL.createObjectURL(new Blob([arr], { type: a.type || meta.slice(5, -7) }));
-  if (w) w.location.href = url; else window.open(url, "_blank");
+  const tipo = a.type || meta.slice(5, -7);
+  // Solo PDF, foto e testo si aprono nel browser; tutto il resto (o tipi sconosciuti / vecchi) si SCARICA:
+  // così un file malevolo (es. HTML/SVG camuffato) non può girare dentro il sito.
+  if (!APRIBILE(tipo) || !TIPI_OK[tipo]) {
+    w && w.close();
+    const url = URL.createObjectURL(new Blob([arr], { type: "application/octet-stream" }));
+    const l = document.createElement("a"); l.href = url; l.download = String(a.name || "allegato").replace(/[\/\\]/g, "_"); l.rel = "noopener";
+    document.body.appendChild(l); l.click(); l.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000); return;
+  }
+  const url = URL.createObjectURL(new Blob([arr], { type: tipo }));
+  if (w) { w.opener = null; w.location.href = url; } else window.open(url, "_blank", "noopener");
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 // parentId null = record nuovo: i file restano "in attesa" e si caricano al primo salvataggio (pending/onPending)
-export function Allegati({ parentType, parentId, disabled, pending, onPending, legacy = [], label = "Allegati (foto / documenti)", accept = "image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt", btn = "Allega file" }) {
+export function Allegati({ parentType, parentId, disabled, pending, onPending, legacy = [], label = "Allegati (foto / documenti)", accept = "image/jpeg,image/png,image/webp,image/gif,application/pdf,.doc,.docx,.xls,.xlsx,.txt", btn = "Allega file" }) {
   const [rows, setRows] = useState(null);
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState(null);
@@ -158,16 +171,20 @@ export function Allegati({ parentType, parentId, disabled, pending, onPending, l
     const files = Array.from(e.target.files || []); e.target.value = "";
     if (!files.length) return;
     setBusy(true);
+    let caricati = 0;
     try {
       for (const f of files) {
-        const r = await readFile(f);
+        const v = await verificaFile(f);
+        if (!v.ok) { toast.err(`${f.name}: scartato — ${v.motivo}`); continue; }
+        const r = await readFile(f, v.tipo);
         const isImg = r.type.startsWith("image/");
         const max = isImg ? APP.maxAllegatoKB : APP.maxFileMB * 1024;
         if (kb(r.data) > max) { toast.err(`${f.name}: troppo grande (${kb(r.data)} KB, max ${isImg ? max + " KB" : APP.maxFileMB + " MB"}). Comprimi il file e riprova.`); continue; }
+        caricati++;
         if (parentId) await addAllegato(parentType, parentId, { ...r, size_kb: kb(r.data) });
         else onPending && onPending([...(pending || []), { ...r, size_kb: kb(r.data) }]);
       }
-      if (parentId) { await load(); toast.ok("Allegato caricato"); }
+      if (parentId && caricati) { await load(); toast.ok(caricati > 1 ? `${caricati} allegati caricati` : "Allegato caricato"); }
     } catch (err) { toast.err("Caricamento non riuscito: " + (err.code || err.message)); }
     setBusy(false);
   };
@@ -201,7 +218,7 @@ export function Allegati({ parentType, parentId, disabled, pending, onPending, l
         </div></div>`)}
     </div>
     ${legacy.length > 0 && html`<details class="legacy-att"><summary>${legacy.length} allegati del vecchio gestionale (solo riferimento)</summary>
-      <ul>${legacy.map((l) => html`<li>${legacyUrl(l.percorso) ? html`<a href=${legacyUrl(l.percorso)} target="_blank" rel="noopener">${l.nome}</a>` : l.nome}
+      <ul>${legacy.map((l) => html`<li>${legacyUrl(l.percorso) ? html`<a href=${legacyUrl(l.percorso)} target="_blank" rel="noopener noreferrer">${l.nome}</a>` : l.nome}
         <span class="muted small"> · ${l.data || ""}</span></li>`)}</ul></details>`}
     ${preview && html`<div class="lightbox" onClick=${() => setPreview(null)}><img src=${preview.data} alt=${preview.name} /></div>`}
   </div>`;

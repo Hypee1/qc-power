@@ -220,6 +220,8 @@ export function download(name, content, type = "text/plain") {
   setTimeout(() => URL.revokeObjectURL(a.href), 30000);
 }
 export function csv(rows) {
-  return "﻿" + rows.map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(";")).join("\r\n");
+  // cellaSicura: neutralizza le celle che Excel interpreterebbe come formule (CSV injection)
+  const safe = (v) => { const s = String(v ?? ""); return /^[=+@\t\r]/.test(s) || /^-[^\d.,\s]/.test(s) ? "'" + s : s; };
+  return "\ufeff" + rows.map((r) => r.map((c) => `"${safe(c).replace(/"/g, '""')}"`).join(";")).join("\r\n");
 }
 export const go = (path) => { location.hash = "#" + path; };
